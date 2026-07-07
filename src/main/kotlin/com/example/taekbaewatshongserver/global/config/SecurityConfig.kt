@@ -1,6 +1,6 @@
 package com.example.taekbaewatshongserver.global.config
 
-import com.example.taekbaewatshongserver.domain.user.UserRepository
+import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.security.jwt.JwtAuthenticationFilter
 import com.example.taekbaewatshongserver.global.security.jwt.JwtTokenProvider
 import com.example.taekbaewatshongserver.global.security.oauth.CustomOAuth2UserService

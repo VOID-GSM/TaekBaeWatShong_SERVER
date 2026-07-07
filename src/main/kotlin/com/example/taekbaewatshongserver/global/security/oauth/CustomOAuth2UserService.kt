@@ -1,8 +1,8 @@
 package com.example.taekbaewatshongserver.global.security.oauth
 
-import com.example.taekbaewatshongserver.domain.user.AuthProvider
-import com.example.taekbaewatshongserver.domain.user.User
-import com.example.taekbaewatshongserver.domain.user.UserRepository
+import com.example.taekbaewatshongserver.domain.user.entity.AuthProvider
+import com.example.taekbaewatshongserver.domain.user.entity.User
+import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.security.UserPrincipal
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest

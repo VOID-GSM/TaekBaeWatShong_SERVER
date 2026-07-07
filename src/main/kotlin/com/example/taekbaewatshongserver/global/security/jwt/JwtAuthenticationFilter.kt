@@ -1,6 +1,6 @@
 package com.example.taekbaewatshongserver.global.security.jwt
 
-import com.example.taekbaewatshongserver.domain.user.UserRepository
+import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
