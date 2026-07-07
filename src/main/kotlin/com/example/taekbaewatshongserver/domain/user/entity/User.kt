@@ -1,4 +1,4 @@
-package com.example.taekbaewatshongserver.domain.user
+package com.example.taekbaewatshongserver.domain.user.entity
 
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
