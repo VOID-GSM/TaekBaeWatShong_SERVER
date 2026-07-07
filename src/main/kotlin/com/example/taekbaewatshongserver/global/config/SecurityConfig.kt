@@ -36,7 +36,7 @@ class SecurityConfig(
             .cors { it.configurationSource(corsConfigurationSource()) }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
-                it.requestMatchers("/", "/auth/login", "/oauth2/**", "/login/**").permitAll()
+                it.requestMatchers("/", "/auth/login", "/auth/admin/login", "/oauth2/**", "/login/**").permitAll()
                 it.anyRequest().authenticated()
             }
             .oauth2Login { oauth2 ->
