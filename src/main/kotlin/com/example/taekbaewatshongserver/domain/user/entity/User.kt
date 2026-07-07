@@ -1,5 +1,6 @@
 package com.example.taekbaewatshongserver.domain.user.entity
 
+import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -15,6 +16,7 @@ class User(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long? = null,
 
+    @Column(unique = true)
     var email: String,
 
     var name: String,
