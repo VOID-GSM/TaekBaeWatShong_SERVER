@@ -1,5 +1,6 @@
-package com.example.taekbaewatshongserver.domain.user
+package com.example.taekbaewatshongserver.domain.user.controller
 
+import com.example.taekbaewatshongserver.domain.user.entity.User
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
