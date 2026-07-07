@@ -14,6 +14,12 @@ class JwtTokenProvider(
     @Value("\${jwt.secret}") secret: String,
     @Value("\${jwt.access-token-validity-ms}") private val validityMs: Long,
 ) {
+    init {
+        require(secret.toByteArray().size >= 32) {
+            "jwt.secret은 HS256 서명을 위해 최소 32바이트(256bit) 이상이어야 합니다"
+        }
+    }
+
     private val key = Keys.hmacShaKeyFor(secret.toByteArray())
 
     fun createToken(userId: Long, email: String): String {
