@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
 
 @RestController
-class AuthController {
+class AuthController(
+    private val oneTimeAuthCodeStore: OneTimeAuthCodeStore,
+) {
 
     @GetMapping("/auth/login")
     fun login(@RequestParam role: Role, request: HttpServletRequest, response: HttpServletResponse) {
@@ -26,6 +28,13 @@ class AuthController {
     fun adminLogin(request: HttpServletRequest, response: HttpServletResponse) {
         request.session.setAttribute(LOGIN_TYPE_SESSION_KEY, LoginType.ADMIN.name)
         response.sendRedirect("/oauth2/authorization/google")
+    }
+
+    @GetMapping("/auth/token")
+    fun exchangeToken(@RequestParam code: String): Map<String, String> {
+        val token = oneTimeAuthCodeStore.consume(code)
+            ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "유효하지 않거나 만료된 code입니다")
+        return mapOf("token" to token)
     }
 
     enum class LoginType {

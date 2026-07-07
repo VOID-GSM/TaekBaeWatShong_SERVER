@@ -14,6 +14,7 @@ import org.springframework.web.util.UriComponentsBuilder
 @Component
 class OAuth2AuthenticationSuccessHandler(
     private val jwtTokenProvider: JwtTokenProvider,
+    private val oneTimeAuthCodeStore: OneTimeAuthCodeStore,
     @Value("\${app.oauth2.redirect-uri}") private val clientRedirectUri: String,
     @Value("\${app.oauth2.admin-redirect-uri}") private val adminRedirectUri: String,
 ) : SimpleUrlAuthenticationSuccessHandler() {
@@ -25,10 +26,11 @@ class OAuth2AuthenticationSuccessHandler(
     ) {
         val principal = authentication.principal as UserPrincipal
         val token = jwtTokenProvider.createToken(principal.user.id!!, principal.user.email)
+        val code = oneTimeAuthCodeStore.issue(token)
         val redirectUri = if (principal.user.role == Role.ADMIN) adminRedirectUri else clientRedirectUri
 
         val targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
-            .queryParam("token", token)
+            .queryParam("code", code)
             .build()
             .toUriString()
 
