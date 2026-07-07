@@ -10,7 +10,8 @@ import org.springframework.web.util.UriComponentsBuilder
 
 @Component
 class OAuth2AuthenticationFailureHandler(
-    @Value("\${app.oauth2.redirect-uri}") private val redirectUri: String,
+    @Value("\${app.oauth2.redirect-uri}") private val clientRedirectUri: String,
+    @Value("\${app.oauth2.admin-redirect-uri}") private val adminRedirectUri: String,
 ) : SimpleUrlAuthenticationFailureHandler() {
 
     override fun onAuthenticationFailure(
@@ -18,6 +19,9 @@ class OAuth2AuthenticationFailureHandler(
         response: HttpServletResponse,
         exception: AuthenticationException,
     ) {
+        val loginType = request.session.getAttribute(AuthController.LOGIN_TYPE_SESSION_KEY) as String?
+        val redirectUri = if (loginType == AuthController.LoginType.ADMIN.name) adminRedirectUri else clientRedirectUri
+
         val targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
             .queryParam("error", exception.localizedMessage)
             .build()
