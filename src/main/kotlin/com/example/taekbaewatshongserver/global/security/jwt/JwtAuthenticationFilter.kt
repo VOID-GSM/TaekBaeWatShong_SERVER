@@ -20,9 +20,10 @@ class JwtAuthenticationFilter(
         filterChain: FilterChain,
     ) {
         val token = resolveToken(request)
+        val claims = token?.let { jwtTokenProvider.getClaims(it) }
 
-        if (token != null && jwtTokenProvider.validateToken(token)) {
-            val userId = jwtTokenProvider.getUserId(token)
+        if (claims != null) {
+            val userId = claims.subject.toLong()
             val user = userRepository.findById(userId).orElse(null)
 
             if (user != null) {

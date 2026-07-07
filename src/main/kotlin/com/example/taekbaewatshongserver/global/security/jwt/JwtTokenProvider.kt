@@ -1,5 +1,6 @@
 package com.example.taekbaewatshongserver.global.security.jwt
 
+import io.jsonwebtoken.Claims
 import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.JwtException
 import io.jsonwebtoken.Jwts
@@ -28,22 +29,14 @@ class JwtTokenProvider(
             .compact()
     }
 
-    fun validateToken(token: String): Boolean =
+    fun getClaims(token: String): Claims? =
         try {
-            Jwts.parser().verifyWith(key).build().parseSignedClaims(token)
-            true
+            Jwts.parser().verifyWith(key).build().parseSignedClaims(token).payload
         } catch (e: ExpiredJwtException) {
-            false
+            null
         } catch (e: JwtException) {
-            false
+            null
         } catch (e: IllegalArgumentException) {
-            false
+            null
         }
-
-    fun getUserId(token: String): Long =
-        Jwts.parser().verifyWith(key).build()
-            .parseSignedClaims(token)
-            .payload
-            .subject
-            .toLong()
 }
