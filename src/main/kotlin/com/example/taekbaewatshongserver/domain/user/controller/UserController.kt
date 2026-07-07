@@ -12,11 +12,5 @@ import org.springframework.web.bind.annotation.RestController
 class UserController {
 
     @GetMapping("/me")
-    fun me(@AuthenticationPrincipal user: User): UserResponse =
-        UserResponse(
-            id = user.id,
-            email = user.email,
-            name = user.name,
-            role = user.role.name,
-        )
+    fun me(@AuthenticationPrincipal user: User): UserResponse = UserResponse.from(user)
 }
