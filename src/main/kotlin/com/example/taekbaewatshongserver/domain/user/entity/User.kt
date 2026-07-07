@@ -25,5 +25,5 @@ class User(
     val providerId: String,
 
     @Enumerated(EnumType.STRING)
-    var role: Role = Role.USER,
+    var role: Role,
 )
