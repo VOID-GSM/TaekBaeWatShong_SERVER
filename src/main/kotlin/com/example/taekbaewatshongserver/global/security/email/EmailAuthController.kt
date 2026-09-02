@@ -1,5 +1,6 @@
 package com.example.taekbaewatshongserver.global.security.email
 
+import com.example.taekbaewatshongserver.domain.user.dto.AdminSignUpRequest
 import com.example.taekbaewatshongserver.domain.user.dto.EmailLoginRequest
 import com.example.taekbaewatshongserver.domain.user.dto.SignUpRequest
 import com.example.taekbaewatshongserver.domain.user.dto.TokenResponse
@@ -32,6 +33,22 @@ class EmailAuthController(
     fun login(@RequestBody request: EmailLoginRequest): TokenResponse {
         validateEmail(request.email)
         return emailAuthService.login(request)
+    }
+
+    @PostMapping("/admin/signup")
+    fun adminSignUp(@RequestBody request: AdminSignUpRequest): TokenResponse {
+        validateEmail(request.email)
+        validatePassword(request.password)
+        if (request.name.isBlank()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "name은 비어있을 수 없습니다")
+        }
+        return emailAuthService.adminSignUp(request)
+    }
+
+    @PostMapping("/admin/login")
+    fun adminLogin(@RequestBody request: EmailLoginRequest): TokenResponse {
+        validateEmail(request.email)
+        return emailAuthService.adminLogin(request)
     }
 
     private fun validateEmail(email: String) {

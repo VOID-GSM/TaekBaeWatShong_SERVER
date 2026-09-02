@@ -45,6 +45,8 @@ class SecurityConfig(
                     "/auth/token",
                     "/auth/email/signup",
                     "/auth/email/login",
+                    "/auth/email/admin/signup",
+                    "/auth/email/admin/login",
                     "/oauth2/**",
                     "/login/**",
                 ).permitAll()
