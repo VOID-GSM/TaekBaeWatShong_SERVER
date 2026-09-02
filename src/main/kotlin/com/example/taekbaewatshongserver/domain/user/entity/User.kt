@@ -24,7 +24,9 @@ class User(
     @Enumerated(EnumType.STRING)
     val provider: AuthProvider,
 
-    val providerId: String,
+    val providerId: String? = null,
+
+    var password: String? = null,
 
     @Enumerated(EnumType.STRING)
     var role: Role,
