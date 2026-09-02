@@ -1,5 +1,6 @@
 package com.example.taekbaewatshongserver.global.security.oauth
 
+import com.example.taekbaewatshongserver.domain.user.dto.TokenResponse
 import com.example.taekbaewatshongserver.domain.user.entity.Role
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -31,10 +32,10 @@ class AuthController(
     }
 
     @GetMapping("/auth/token")
-    fun exchangeToken(@RequestParam code: String): Map<String, String> {
+    fun exchangeToken(@RequestParam code: String): TokenResponse {
         val token = oneTimeAuthCodeStore.consume(code)
             ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "유효하지 않거나 만료된 code입니다")
-        return mapOf("token" to token)
+        return TokenResponse(token)
     }
 
     enum class LoginType {

@@ -10,6 +10,7 @@ import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.security.jwt.JwtTokenProvider
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -50,15 +51,19 @@ class EmailAuthService(
             throw ResponseStatusException(HttpStatus.CONFLICT, "이미 가입된 이메일입니다")
         }
 
-        val user = userRepository.save(
-            User(
-                email = email,
-                name = name,
-                provider = AuthProvider.LOCAL,
-                password = passwordEncoder.encode(password),
-                role = role,
-            ),
-        )
+        val user = try {
+            userRepository.save(
+                User(
+                    email = email,
+                    name = name,
+                    provider = AuthProvider.LOCAL,
+                    password = passwordEncoder.encode(password),
+                    role = role,
+                ),
+            )
+        } catch (e: DataIntegrityViolationException) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "이미 가입된 이메일입니다")
+        }
 
         return TokenResponse(jwtTokenProvider.createToken(requireNotNull(user.id), user.email))
     }

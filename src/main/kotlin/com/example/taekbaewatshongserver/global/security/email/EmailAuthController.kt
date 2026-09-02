@@ -61,5 +61,8 @@ class EmailAuthController(
         if (password.length < 8) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호는 8자 이상이어야 합니다")
         }
+        if (password.toByteArray(Charsets.UTF_8).size > 72) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호는 72바이트를 초과할 수 없습니다")
+        }
     }
 }
