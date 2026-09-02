@@ -8,14 +8,3 @@ data class SignUpRequest(
     val name: String,
     val role: Role,
 )
-
-data class EmailLoginRequest(
-    val email: String,
-    val password: String,
-)
-
-data class AdminSignUpRequest(
-    val email: String,
-    val password: String,
-    val name: String,
-)
