@@ -12,6 +12,7 @@ class OneTimeAuthCodeStore {
     private val store = ConcurrentHashMap<String, Entry>()
 
     fun issue(token: String): String {
+        purgeExpired()
         val code = UUID.randomUUID().toString()
         store[code] = Entry(token, Instant.now().plusSeconds(TTL_SECONDS))
         return code
@@ -20,6 +21,11 @@ class OneTimeAuthCodeStore {
     fun consume(code: String): String? {
         val entry = store.remove(code) ?: return null
         return entry.token.takeIf { entry.expiresAt.isAfter(Instant.now()) }
+    }
+
+    private fun purgeExpired() {
+        val now = Instant.now()
+        store.entries.removeIf { it.value.expiresAt.isBefore(now) }
     }
 
     companion object {

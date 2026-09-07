@@ -12,6 +12,8 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.web.cors.CorsConfiguration
@@ -36,7 +38,18 @@ class SecurityConfig(
             .cors { it.configurationSource(corsConfigurationSource()) }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
-                it.requestMatchers("/", "/auth/login", "/auth/admin/login", "/auth/token", "/oauth2/**", "/login/**").permitAll()
+                it.requestMatchers(
+                    "/",
+                    "/auth/login",
+                    "/auth/admin/login",
+                    "/auth/token",
+                    "/auth/email/signup",
+                    "/auth/email/login",
+                    "/auth/email/admin/signup",
+                    "/auth/email/admin/login",
+                    "/oauth2/**",
+                    "/login/**",
+                ).permitAll()
                 it.anyRequest().authenticated()
             }
             .oauth2Login { oauth2 ->
@@ -51,6 +64,9 @@ class SecurityConfig(
 
         return http.build()
     }
+
+    @Bean
+    fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
 
     private fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
