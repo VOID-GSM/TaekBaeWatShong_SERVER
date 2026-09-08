@@ -38,3 +38,6 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
   admin:
     emails: ${ADMIN_EMAILS:}
+
+apick:
+  api-key: ${APICK_API_KEY}
