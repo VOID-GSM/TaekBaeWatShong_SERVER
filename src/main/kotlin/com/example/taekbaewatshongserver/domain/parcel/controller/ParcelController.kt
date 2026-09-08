@@ -8,6 +8,7 @@ import com.example.taekbaewatshongserver.domain.parcel.service.ParcelService
 import com.example.taekbaewatshongserver.global.security.UserPrincipal
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 
@@ -26,6 +27,7 @@ class ParcelController(
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @GetMapping
     fun getAllParcels(
         @RequestParam(required = false) status: ParcelStatus?
@@ -43,6 +45,7 @@ class ParcelController(
         return ResponseEntity.ok(response)
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @PatchMapping("/complete")
     fun completeParcelScan(
         @RequestBody request: ParcelCompleteRequest
@@ -51,6 +54,7 @@ class ParcelController(
         return ResponseEntity.ok(response)
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @GetMapping("/zone")
     fun getParcelsByZone(
         @RequestParam(required = false) zone: Zone?
@@ -59,6 +63,7 @@ class ParcelController(
         return ResponseEntity.ok(response)
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @PatchMapping("/{parcelId}/zone")
     fun assignZone(
         @PathVariable parcelId: Long,
