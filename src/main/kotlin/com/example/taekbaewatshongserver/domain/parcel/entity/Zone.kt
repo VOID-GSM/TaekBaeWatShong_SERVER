@@ -1,10 +1,10 @@
 package com.example.taekbaewatshongserver.domain.parcel.entity
 
 enum class Zone(val description: String) {
-    A("A 구역 - 정문 입구 측"),
-    B("B 구역 - 중앙 보관함"),
-    C("C 구역 - 대형 화물 구역"),
-    D("D 구역 - 후문 입구 측"),
-    E("E 구역 - 신선 식품/냉장"),
-    F("F 구역 - 기타/임시 보관")
+    A("1번 선반 - 1단 (상단)"),
+    B("1번 선반 - 2단 (중단)"),
+    C("1번 선반 - 3단 (하단)"),
+    D("2번 선반 - 1단 (상단)"),
+    E("2번 선반 - 2단 (중단)"),
+    F("2번 선반 - 3단 (하단)")
 }
