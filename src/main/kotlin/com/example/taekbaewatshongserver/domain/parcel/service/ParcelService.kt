@@ -7,6 +7,7 @@ import com.example.taekbaewatshongserver.domain.parcel.entity.ParcelStatus
 import com.example.taekbaewatshongserver.domain.parcel.entity.Zone
 import com.example.taekbaewatshongserver.domain.parcel.repository.ParcelRepository
 import com.example.taekbaewatshongserver.domain.user.entity.User
+import com.example.taekbaewatshongserver.global.exception.ParcelException
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
@@ -23,8 +24,8 @@ class ParcelService(
 
     @Transactional
     fun registerParcel(user: User, request: ParcelRegisterRequest): ParcelResponse {
-        require(apickTrackingService.validateInvoice(request.deliveryCompany, request.invoiceNumber)) {
-            "유효하지 않은 운송장 번호이거나 조회할 수 없는 택배입니다."
+        if (!apickTrackingService.validateInvoice(request.deliveryCompany, request.invoiceNumber)) {
+            throw ParcelException.InvalidInvoice("유효하지 않은 운송장 번호이거나 조회할 수 없는 택배입니다.")
         }
 
         val alias = request.alias?.takeIf { it.isNotBlank() } ?: user.name
@@ -71,7 +72,7 @@ class ParcelService(
     @Transactional
     fun completeParcelScan(request: ParcelCompleteRequest): ParcelResponse {
         val parcel = parcelRepository.findByInvoiceNumber(request.invoiceNumber)
-            ?: throw IllegalArgumentException("해당 운송장 번호의 택배를 찾을 수 없습니다. (${request.invoiceNumber})")
+            ?: throw ParcelException.NotFound("해당 운송장 번호의 택배를 찾을 수 없습니다. (${request.invoiceNumber})")
 
         parcel.markAsArrived(request.zone)
 
@@ -108,7 +109,7 @@ class ParcelService(
     @Transactional
     fun assignZone(parcelId: Long, request: ParcelZoneAssignRequest): ParcelZoneAssignResponse {
         val parcel = parcelRepository.findById(parcelId)
-            .orElseThrow { IllegalArgumentException("존재하지 않는 택배 ID입니다.") }
+            .orElseThrow { ParcelException.NotFound("존재하지 않는 택배 ID입니다.") }
 
         parcel.updateZone(request.zone)
 
@@ -120,7 +121,7 @@ class ParcelService(
     @Transactional
     fun claimParcel(user: User, request: ParcelClaimRequest): ParcelClaimResponse {
         val parcel = parcelRepository.findByInvoiceNumber(request.invoiceNumber)
-            ?: throw IllegalArgumentException("해당 운송장 번호의 택배를 찾을 수 없습니다.")
+            ?: throw ParcelException.NotFound("해당 운송장 번호의 택배를 찾을 수 없습니다.")
 
         if (parcel.owner.id != user.id) {
             throw AccessDeniedException("본인의 택배만 회수 처리할 수 있습니다.")
