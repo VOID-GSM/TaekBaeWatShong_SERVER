@@ -39,4 +39,6 @@ interface ParcelRepository : JpaRepository<Parcel, Long> {
     ): List<Parcel>
 
     fun findAllByStatusAndZoneIn(status: ParcelStatus, zones: List<Zone>): List<Parcel>
+
+    fun existsByInvoiceNumber(invoiceNumber: String): Boolean
 }

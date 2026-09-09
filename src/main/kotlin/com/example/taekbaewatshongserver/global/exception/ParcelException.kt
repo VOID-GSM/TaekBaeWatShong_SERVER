@@ -22,4 +22,9 @@ sealed class ParcelException(
     class DuplicateInvoice(
         message: String = "이미 등록되었거나 처리 중인 운송장 번호입니다."
     ) : ParcelException(HttpStatus.BAD_REQUEST, message)
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    class Conflict(
+        message: String = "이미 존재하는 운송장 번호입니다."
+    ) : ParcelException(HttpStatus.CONFLICT, message)
 }

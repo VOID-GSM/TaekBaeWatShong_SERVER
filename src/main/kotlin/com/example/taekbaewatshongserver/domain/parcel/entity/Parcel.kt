@@ -16,7 +16,7 @@ class Parcel(
     @Column(nullable = false)
     val deliveryCompany: String,
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     val invoiceNumber: String,
 
     @Column(nullable = false)

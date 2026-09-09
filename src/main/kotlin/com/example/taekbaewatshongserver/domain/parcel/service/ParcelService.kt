@@ -24,6 +24,10 @@ class ParcelService(
 
     @Transactional
     fun registerParcel(user: User, request: ParcelRegisterRequest): ParcelResponse {
+        if (parcelRepository.existsByInvoiceNumber(request.invoiceNumber)) {
+            throw ParcelException.Conflict("이미 등록된 운송장 번호입니다.")
+        }
+
         if (!apickTrackingService.validateInvoice(request.deliveryCompany, request.invoiceNumber)) {
             throw ParcelException.InvalidInvoice("유효하지 않은 운송장 번호이거나 조회할 수 없는 택배입니다.")
         }
