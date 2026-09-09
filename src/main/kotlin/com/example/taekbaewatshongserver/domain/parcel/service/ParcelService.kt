@@ -117,8 +117,6 @@ class ParcelService(
 
         parcel.updateZone(request.zone)
 
-        eventPublisher.publishEvent(ParcelArrivedEvent(parcel))
-
         return ParcelZoneAssignResponse.from(parcel)
     }
 
