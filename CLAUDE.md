@@ -25,7 +25,13 @@ This file adds only what is specific to Claude Code: the agent-team harness.
 
 All six read `spring-kotlin-conventions`. Every agent runs on `model: "opus"`. `git-workflow-engineer` joins only at the delivery phase, so it cannot commit half-finished work.
 
-Agents for other tools: `AGENTS.md` covers Codex and anything else reading that convention. Keep the two files in sync when a rule changes — shared rules belong in `AGENTS.md`, harness wiring belongs here.
+### Other tools
+
+`AGENTS.md` covers Codex and anything else reading that convention. Shared rules belong there; harness wiring belongs here.
+
+**The ten skill files are duplicated at `.codex/skills/`** because Codex auto-discovers that directory and does not read `.claude/`. When you change a skill, change both copies in the same commit — if they drift, the two tools silently follow different rules. Check with `diff -r .claude/skills .codex/skills`.
+
+Agent definitions are not duplicated: Codex does not load them from the repo.
 
 **Change log:**
 

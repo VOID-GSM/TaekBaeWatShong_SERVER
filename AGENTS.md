@@ -223,9 +223,30 @@ Never apply a change you believe is wrong just to close a thread. Review comment
 | `gh pr review --approve` / `--request-changes` | Explicit request only |
 | Force push, amend pushed commits, commit on `main` | Never |
 
+## Skill files — keep both copies in sync
+
+The same ten skill files exist twice, because Claude Code and Codex scan different directories:
+
+```
+.claude/skills/<name>/SKILL.md   ← Claude Code reads this
+.codex/skills/<name>/SKILL.md    ← Codex auto-discovers this (verified, codex-cli 0.154.0)
+```
+
+Codex does **not** read `.claude/`, and Claude Code does not read `.codex/`. There is no shared location that both scan.
+
+**When you change a skill, change both copies in the same commit.** If they drift, the two tools silently follow different rules — the worst possible failure mode, because nothing errors and the difference only shows up as inconsistent behavior weeks later.
+
+To check they match:
+
+```bash
+diff -r .claude/skills .codex/skills && echo "동일함"
+```
+
+`.claude/agents/` has no `.codex/` counterpart: Codex does not load agent definitions from the repo, so copying them there would leave dead files. Agent definitions are Claude Code only.
+
 ## Reference files
 
-Read these on demand; they are plain markdown.
+Read these on demand; they are plain markdown. Skill paths are shown under `.claude/`; the identical copy under `.codex/` works the same.
 
 | File | Contents |
 |------|----------|
@@ -242,7 +263,7 @@ Read these on demand; they are plain markdown.
 | `.claude/skills/github-review-responder/SKILL.md` | Review comment handling, `gh` commands for replying and resolving |
 | `.claude/skills/github-review-commenter/SKILL.md` | What is worth commenting on in a review |
 
-Files under `.claude/` are Claude Code's skill format, but they are ordinary markdown documents — any agent can read them directly.
+Codex auto-discovers the `.codex/skills/` copies as native skills, so it normally does not need to open these paths manually. Any agent can still read them directly — they are ordinary markdown.
 
 ## Working expectations
 
