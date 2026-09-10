@@ -38,3 +38,7 @@ out/
 
 ### Kotlin ###
 .kotlin
+
+### Claude harness workspace ###
+_workspace/
+_workspace_*/
