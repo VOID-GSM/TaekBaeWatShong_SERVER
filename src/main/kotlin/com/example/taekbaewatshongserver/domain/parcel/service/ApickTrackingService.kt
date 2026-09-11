@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientResponseException
+import com.example.taekbaewatshongserver.domain.parcel.dto.response.ApickTrackingResponse
 import java.time.Duration
 
 @Service
@@ -38,10 +40,20 @@ class ApickTrackingService(
                 .body(ApickTrackingResponse::class.java)
 
             response?.success == true && response.data != null
-        } catch (e: Exception) {
-            // println 대신 Slf4j Logger 사용
-            log.error("APICK API 호출 실패: ${e.message}", e)
+
+        } catch (e: RestClientResponseException) {
+            log.error("APICK API 응답 에러 발생 (HTTP ${e.statusCode}): ${e.responseBodyAsString}", e)
+
+            if (e.statusCode.is5xxServerError) {
+                log.warn("APICK 서버 장애로 인해 운송장 검증을 임시 통과(Bypass)합니다. [운송장: $invoiceNumber]")
+                return true
+            }
             false
+
+        } catch (e: Exception) {
+            log.error("APICK API 연동 중 네트워크/시스템 오류 발생: ${e.message}", e)
+            log.warn("외부 API 연동 실패로 인해 운송장 검증을 임시 통과(Bypass)합니다. [운송장: $invoiceNumber]")
+            true
         }
     }
 
@@ -57,21 +69,4 @@ class ApickTrackingService(
             else -> companyName
         }
     }
-}
-
-data class ApickTrackingResponse(
-    val success: Boolean,
-    val data: ApickData?,
-    val error: ApickError?
-) {
-    data class ApickData(
-        val invoiceNo: String?,
-        val item: String?,
-        val receiverName: String?
-    )
-
-    data class ApickError(
-        val code: String?,
-        val message: String?
-    )
 }
