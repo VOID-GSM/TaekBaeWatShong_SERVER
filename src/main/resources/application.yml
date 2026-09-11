@@ -40,4 +40,4 @@ app:
     emails: ${ADMIN_EMAILS:}
 
 apick:
-  api-key: ${APICK_API_KEY}
+  api-key: ${APICK_API_KEY:}

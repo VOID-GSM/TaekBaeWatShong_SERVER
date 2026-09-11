@@ -1,18 +1,30 @@
 package com.example.taekbaewatshongserver.domain.parcel.service
 
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
+import java.time.Duration
 
 @Service
 class ApickTrackingService(
-    @Value("\${apick.api-key:dummy-key}")
+    @Value("\${apick.api-key}")
     private val apiKey: String
 ) {
-    private val restClient: RestClient = RestClient.create("https://apick.app/rest")
+    private val log = LoggerFactory.getLogger(javaClass)
+
+    private val restClient: RestClient = RestClient.builder()
+        .baseUrl("https://apick.app/rest")
+        .requestFactory(SimpleClientHttpRequestFactory().apply {
+            setConnectTimeout(Duration.ofSeconds(3))
+            setReadTimeout(Duration.ofSeconds(3))
+        })
+        .build()
 
     fun validateInvoice(deliveryCompany: String, invoiceNumber: String): Boolean {
-        if (apiKey == "dummy-key" || apiKey.isBlank()) {
+        if (apiKey.isBlank() || apiKey == "dummy-key") {
+            log.warn("APICK API 키가 설정되지 않아 운송장 검증을 패스합니다.")
             return true
         }
 
@@ -27,7 +39,8 @@ class ApickTrackingService(
 
             response?.success == true && response.data != null
         } catch (e: Exception) {
-            println("APICK API 호출 실패: ${e.message}")
+            // println 대신 Slf4j Logger 사용
+            log.error("APICK API 호출 실패: ${e.message}", e)
             false
         }
     }
