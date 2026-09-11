@@ -27,4 +27,9 @@ sealed class ParcelException(
     class Conflict(
         message: String = "이미 존재하는 운송장 번호입니다."
     ) : ParcelException(HttpStatus.CONFLICT, message)
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    class InvalidStatus(
+        message: String = "잘못된 택배 상태 변경 요청입니다."
+    ) : ParcelException(HttpStatus.CONFLICT, message)
 }

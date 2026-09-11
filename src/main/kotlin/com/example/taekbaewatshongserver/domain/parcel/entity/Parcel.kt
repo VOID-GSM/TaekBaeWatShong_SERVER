@@ -1,6 +1,7 @@
 package com.example.taekbaewatshongserver.domain.parcel.entity
 
 import com.example.taekbaewatshongserver.domain.user.entity.User
+import com.example.taekbaewatshongserver.global.exception.ParcelException
 import jakarta.persistence.*
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -46,6 +47,9 @@ class Parcel(
         } else 0
 
     fun markAsArrived(assignedZone: Zone? = null) {
+        if (this.status != ParcelStatus.PENDING) {
+            throw ParcelException.InvalidStatus("도착 대기(PENDING) 상태의 택배만 스캔 완료할 수 있습니다. (현재 상태: ${this.status})")
+        }
         this.status = ParcelStatus.ARRIVED
         this.arrivedAt = LocalDateTime.now()
         assignedZone?.let { this.zone = it }
@@ -56,6 +60,9 @@ class Parcel(
     }
 
     fun markAsClaimed() {
+        if (this.status != ParcelStatus.ARRIVED) {
+            throw ParcelException.InvalidStatus("도착 완료(ARRIVED) 상태의 택배만 수령 처리할 수 있습니다. (현재 상태: ${this.status})")
+        }
         this.status = ParcelStatus.CLAIMED
         this.claimedAt = LocalDateTime.now()
     }
