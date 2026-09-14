@@ -6,7 +6,7 @@ data class ParcelZoneGroupResponse(
     val zones: List<ZoneGroupDetail>
 ) {
     data class ZoneGroupDetail(
-        val zone: Zone,
+        val zone: Zone?,
         val count: Int,
         val parcels: List<ParcelSimpleDetail>
     )

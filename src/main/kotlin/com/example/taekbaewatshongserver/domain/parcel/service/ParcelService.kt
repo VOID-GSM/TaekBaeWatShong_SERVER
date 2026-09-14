@@ -86,11 +86,17 @@ class ParcelService(
     }
 
     fun getParcelsByZone(zoneParam: Zone?): ParcelZoneGroupResponse {
-        val targetZones = if (zoneParam != null) listOf(zoneParam) else Zone.entries.toList()
-        val arrivedParcels = parcelRepository.findAllByStatusAndZoneIn(ParcelStatus.ARRIVED, targetZones)
+        val targetZones: List<Zone?> = if (zoneParam != null) {
+            listOf(zoneParam)
+        } else {
+            Zone.entries.toList() + listOf(null)
+        }
+
+        val arrivedParcels = parcelRepository.findAllByStatusOrderByCreatedAtDesc(ParcelStatus.ARRIVED)
 
         val zoneGroupDetails = targetZones.map { zone ->
             val zoneParcels = arrivedParcels.filter { it.zone == zone }
+
             ParcelZoneGroupResponse.ZoneGroupDetail(
                 zone = zone,
                 count = zoneParcels.size,
