@@ -54,9 +54,15 @@ class ParcelService(
         val threeDaysAgo = LocalDateTime.now().minusDays(3)
 
         val parcels = when (status) {
-            null -> parcelRepository.findAllByOrderByCreatedAtDesc()
             ParcelStatus.CLAIMED -> parcelRepository.findClaimedParcelsWithinThreeDays(threeDaysAgo = threeDaysAgo)
-            else -> parcelRepository.findAllByStatusOrderByCreatedAtDesc(status)
+            else -> {
+                val allParcels = parcelRepository.findAllByOrderByCreatedAtDesc()
+                if (status != null) {
+                    allParcels.filter { it.status == status }
+                } else {
+                    allParcels.filter { it.status != ParcelStatus.CLAIMED || it.claimedAt?.isAfter(threeDaysAgo) == true }
+                }
+            }
         }
 
         return ParcelListResponse(parcels.map { ParcelResponse.from(it) })
@@ -66,13 +72,19 @@ class ParcelService(
         val threeDaysAgo = LocalDateTime.now().minusDays(3)
 
         val parcels = when (status) {
-            null -> parcelRepository.findAllByOwnerOrderByCreatedAtDesc(user)
             ParcelStatus.CLAIMED -> parcelRepository.findAllByOwnerAndStatusAndClaimedAtGreaterThanEqualOrderByCreatedAtDesc(
                 owner = user,
                 status = ParcelStatus.CLAIMED,
                 claimedAt = threeDaysAgo
             )
-            else -> parcelRepository.findAllByOwnerAndStatusOrderByCreatedAtDesc(user, status)
+            else -> {
+                val userParcels = parcelRepository.findAllByOwnerOrderByCreatedAtDesc(user)
+                if (status != null) {
+                    userParcels.filter { it.status == status }
+                } else {
+                    userParcels.filter { it.status != ParcelStatus.CLAIMED || it.claimedAt?.isAfter(threeDaysAgo) == true }
+                }
+            }
         }
 
         return ParcelListResponse(parcels.map { ParcelResponse.from(it) })
