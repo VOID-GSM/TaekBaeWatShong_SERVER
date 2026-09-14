@@ -27,7 +27,7 @@ class ParcelController(
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     fun getAllParcels(
         @RequestParam(required = false) status: ParcelStatus?
@@ -45,7 +45,7 @@ class ParcelController(
         return ResponseEntity.ok(response)
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/complete")
     fun completeParcelScan(
         @RequestBody request: ParcelCompleteRequest
@@ -54,7 +54,7 @@ class ParcelController(
         return ResponseEntity.ok(response)
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/zone")
     fun getParcelsByZone(
         @RequestParam(required = false) zone: Zone?
@@ -63,7 +63,7 @@ class ParcelController(
         return ResponseEntity.ok(response)
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{parcelId}/zone")
     fun assignZone(
         @PathVariable parcelId: Long,
