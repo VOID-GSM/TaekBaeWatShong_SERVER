@@ -9,6 +9,7 @@ import com.example.taekbaewatshongserver.domain.parcel.repository.ParcelReposito
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.global.exception.ParcelException
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -41,8 +42,12 @@ class ParcelService(
             owner = user
         )
 
-        val savedParcel = parcelRepository.save(parcel)
-        return ParcelResponse.from(savedParcel)
+        return try {
+            val savedParcel = parcelRepository.save(parcel)
+            ParcelResponse.from(savedParcel)
+        } catch (e: DataIntegrityViolationException) {
+            throw ParcelException.Conflict("이미 등록된 운송장 번호입니다.")
+        }
     }
 
     fun getAllParcels(status: ParcelStatus?): ParcelListResponse {
