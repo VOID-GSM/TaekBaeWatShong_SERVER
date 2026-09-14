@@ -5,7 +5,7 @@ import com.example.taekbaewatshongserver.domain.parcel.dto.response.*
 import com.example.taekbaewatshongserver.domain.parcel.entity.ParcelStatus
 import com.example.taekbaewatshongserver.domain.parcel.entity.Zone
 import com.example.taekbaewatshongserver.domain.parcel.service.ParcelService
-import com.example.taekbaewatshongserver.global.security.UserPrincipal
+import com.example.taekbaewatshongserver.domain.user.entity.User
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -20,10 +20,10 @@ class ParcelController(
 
     @PostMapping
     fun registerParcel(
-        @AuthenticationPrincipal userPrincipal: UserPrincipal,
+        @AuthenticationPrincipal user: User,
         @RequestBody request: ParcelRegisterRequest
     ): ResponseEntity<ParcelResponse> {
-        val response = parcelService.registerParcel(userPrincipal.user, request)
+        val response = parcelService.registerParcel(user, request)
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
 
@@ -38,10 +38,10 @@ class ParcelController(
 
     @GetMapping("/me")
     fun getMyParcels(
-        @AuthenticationPrincipal userPrincipal: UserPrincipal,
+        @AuthenticationPrincipal user: User,
         @RequestParam(required = false) status: ParcelStatus?
     ): ResponseEntity<ParcelListResponse> {
-        val response = parcelService.getMyParcels(userPrincipal.user, status)
+        val response = parcelService.getMyParcels(user, status)
         return ResponseEntity.ok(response)
     }
 
@@ -75,10 +75,10 @@ class ParcelController(
 
     @PatchMapping("/claim")
     fun claimParcel(
-        @AuthenticationPrincipal userPrincipal: UserPrincipal,
+        @AuthenticationPrincipal user: User,
         @RequestBody request: ParcelClaimRequest
     ): ResponseEntity<ParcelClaimResponse> {
-        val response = parcelService.claimParcel(userPrincipal.user, request)
+        val response = parcelService.claimParcel(user, request)
         return ResponseEntity.ok(response)
     }
 }
