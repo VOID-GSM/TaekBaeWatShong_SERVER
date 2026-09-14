@@ -44,8 +44,9 @@ class ApickTrackingService(
         } catch (e: RestClientResponseException) {
             log.error("APICK API 응답 에러 발생 (HTTP ${e.statusCode}): ${e.responseBodyAsString}", e)
 
-            if (e.statusCode.is5xxServerError) {
-                log.warn("APICK 서버 장애로 인해 운송장 검증을 임시 통과(Bypass)합니다. [운송장: $invoiceNumber]")
+            val statusValue = e.statusCode.value()
+            if (e.statusCode.is5xxServerError || statusValue == 401 || statusValue == 403 || statusValue == 429) {
+                log.warn("APICK 연동 장애(HTTP $statusValue)로 인해 운송장 검증을 임시 통과(Bypass)합니다. [운송장: $invoiceNumber]")
                 return true
             }
             false
