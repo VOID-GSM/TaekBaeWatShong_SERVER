@@ -12,4 +12,10 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(e.status)
             .body(mapOf("message" to (e.message ?: "알 수 없는 오류가 발생했습니다.")))
     }
+
+    @ExceptionHandler(ReportException::class)
+    fun handleReportException(e: ReportException): ResponseEntity<Map<String, String>> {
+        return ResponseEntity.status(e.status)
+            .body(mapOf("message" to (e.message ?: "알 수 없는 오류가 발생했습니다.")))
+    }
 }
