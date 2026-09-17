@@ -37,15 +37,14 @@ class UnclaimedReminderScheduler(
         for (parcel in arrivedParcels) {
             val elapsedDays = parcel.unclaimedDays
 
-            val targetDay = reminderDays
-                .filter { it <= elapsedDays }
-                .firstOrNull { day ->
-                    !notificationRepository.existsByParcelAndTypeAndUnclaimedDays(
-                        parcel = parcel,
-                        type = NotificationType.UNCLAIMED_REMINDER,
-                        unclaimedDays = day
-                    )
-                } ?: continue
+            val targetDay = reminderDays.firstOrNull { it <= elapsedDays } ?: continue
+
+            val alreadySent = notificationRepository.existsByParcelAndTypeAndUnclaimedDays(
+                parcel = parcel,
+                type = NotificationType.UNCLAIMED_REMINDER,
+                unclaimedDays = targetDay
+            )
+            if (alreadySent) continue
 
             try {
                 notificationService.create(
@@ -53,10 +52,10 @@ class UnclaimedReminderScheduler(
                     parcel = parcel,
                     type = NotificationType.UNCLAIMED_REMINDER,
                     title = "택배 수령이 지연되고 있습니다",
-                    message = "[${parcel.alias}] 택배가 도착 후 ${targetDay}일째 보관 중입니다. 수령해주세요.",
+                    message = "[${parcel.alias}] 택배가 도착 후 ${elapsedDays}일째 보관 중입니다. 수령해주세요.",
                     unclaimedDays = targetDay
                 )
-                log.info("[알림 발생] 수신자: {} | 내용: [{}] 택배가 도착 후 {}일째 미수령 상태입니다.", parcel.owner.name, parcel.alias, targetDay)
+                log.info("[알림 발생] 수신자: {} | 내용: [{}] 택배가 도착 후 {}일째 미수령 상태입니다.", parcel.owner.name, parcel.alias, elapsedDays)
             } catch (e: DataIntegrityViolationException) {
                 log.info("[알림 발생 스킵] 이미 다른 프로세스에서 발송된 리마인더입니다. parcelId: {}, unclaimedDays: {}", parcel.id, targetDay)
             } catch (e: Exception) {
