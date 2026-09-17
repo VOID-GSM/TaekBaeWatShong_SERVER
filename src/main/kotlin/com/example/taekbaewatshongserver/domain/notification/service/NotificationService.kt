@@ -1,13 +1,16 @@
 package com.example.taekbaewatshongserver.domain.notification.service
 
 import com.example.taekbaewatshongserver.domain.notification.dto.response.NotificationListResponse
+import com.example.taekbaewatshongserver.domain.notification.dto.response.NotificationReadResponse
 import com.example.taekbaewatshongserver.domain.notification.dto.response.NotificationResponse
 import com.example.taekbaewatshongserver.domain.notification.entity.Notification
 import com.example.taekbaewatshongserver.domain.notification.entity.NotificationType
 import com.example.taekbaewatshongserver.domain.notification.repository.NotificationRepository
 import com.example.taekbaewatshongserver.domain.parcel.entity.Parcel
 import com.example.taekbaewatshongserver.domain.user.entity.User
+import com.example.taekbaewatshongserver.global.exception.NotificationException
 import org.springframework.data.domain.PageRequest
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -40,6 +43,26 @@ class NotificationService(
             unreadCount = unreadCount.toInt(),
             notifications = content.map { NotificationResponse.from(it) },
             nextCursor = nextCursor
+        )
+    }
+
+    @Transactional
+    fun markAsRead(user: User, notificationId: Long): NotificationReadResponse {
+        val notification = notificationRepository.findById(notificationId)
+            .orElseThrow { NotificationException.NotFound() }
+
+        if (notification.recipient.id != user.id) {
+            throw AccessDeniedException("본인의 알림만 읽음 처리할 수 있습니다.")
+        }
+
+        notification.markAsRead()
+
+        val unreadCount = notificationRepository.countByRecipientAndIsReadFalse(user)
+
+        return NotificationReadResponse(
+            id = notification.id,
+            isRead = notification.isRead,
+            unreadCount = unreadCount.toInt()
         )
     }
 
