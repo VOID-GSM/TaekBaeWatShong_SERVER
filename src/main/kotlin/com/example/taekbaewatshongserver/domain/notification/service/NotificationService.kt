@@ -2,7 +2,10 @@ package com.example.taekbaewatshongserver.domain.notification.service
 
 import com.example.taekbaewatshongserver.domain.notification.dto.response.NotificationListResponse
 import com.example.taekbaewatshongserver.domain.notification.dto.response.NotificationResponse
+import com.example.taekbaewatshongserver.domain.notification.entity.Notification
+import com.example.taekbaewatshongserver.domain.notification.entity.NotificationType
 import com.example.taekbaewatshongserver.domain.notification.repository.NotificationRepository
+import com.example.taekbaewatshongserver.domain.parcel.entity.Parcel
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -38,5 +41,25 @@ class NotificationService(
             notifications = content.map { NotificationResponse.from(it) },
             nextCursor = nextCursor
         )
+    }
+
+    @Transactional
+    fun create(
+        recipient: User,
+        parcel: Parcel,
+        type: NotificationType,
+        title: String,
+        message: String,
+        unclaimedDays: Int? = null
+    ): Notification {
+        val notification = Notification(
+            type = type,
+            title = title,
+            message = message,
+            parcel = parcel,
+            recipient = recipient,
+            unclaimedDays = unclaimedDays
+        )
+        return notificationRepository.save(notification)
     }
 }

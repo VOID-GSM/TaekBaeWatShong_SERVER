@@ -44,6 +44,7 @@ class ParcelService(
 
         return try {
             val savedParcel = parcelRepository.save(parcel)
+            eventPublisher.publishEvent(ParcelRegisteredEvent(savedParcel))
             ParcelResponse.from(savedParcel)
         } catch (e: DataIntegrityViolationException) {
             throw ParcelException.Conflict("이미 등록된 운송장 번호입니다.")
@@ -140,6 +141,10 @@ class ParcelService(
 
         parcel.updateZone(request.zone)
 
+        if (parcel.status == ParcelStatus.ARRIVED) {
+            eventPublisher.publishEvent(ParcelZoneAssignedEvent(parcel))
+        }
+
         return ParcelZoneAssignResponse.from(parcel)
     }
 
@@ -153,6 +158,8 @@ class ParcelService(
         }
 
         parcel.markAsClaimed()
+
+        eventPublisher.publishEvent(ParcelClaimedEvent(parcel))
 
         return ParcelClaimResponse.from(parcel)
     }
