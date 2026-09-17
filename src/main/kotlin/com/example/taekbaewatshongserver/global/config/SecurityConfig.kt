@@ -4,6 +4,7 @@ import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.security.jwt.JwtAuthenticationFilter
 import com.example.taekbaewatshongserver.global.security.jwt.JwtTokenProvider
 import com.example.taekbaewatshongserver.global.security.oauth.CustomOAuth2UserService
+import com.example.taekbaewatshongserver.global.security.oauth.DelegatingAuthorizationCodeTokenResponseClient
 import com.example.taekbaewatshongserver.global.security.oauth.OAuth2AuthenticationFailureHandler
 import com.example.taekbaewatshongserver.global.security.oauth.OAuth2AuthenticationSuccessHandler
 import org.springframework.beans.factory.annotation.Value
@@ -54,6 +55,7 @@ class SecurityConfig(
             }
             .oauth2Login { oauth2 ->
                 oauth2.userInfoEndpoint { it.userService(customOAuth2UserService) }
+                oauth2.tokenEndpoint { it.accessTokenResponseClient(DelegatingAuthorizationCodeTokenResponseClient()) }
                 oauth2.successHandler(oAuth2AuthenticationSuccessHandler)
                 oauth2.failureHandler(oAuth2AuthenticationFailureHandler)
             }

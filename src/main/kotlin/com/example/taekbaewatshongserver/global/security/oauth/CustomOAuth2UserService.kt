@@ -26,7 +26,22 @@ class CustomOAuth2UserService(
 
     override fun loadUser(userRequest: OAuth2UserRequest): OAuth2User {
         val oAuth2User = super.loadUser(userRequest)
-        val userInfo = GoogleOAuth2UserInfo(oAuth2User.attributes)
+        val registrationId = userRequest.clientRegistration.registrationId
+        val userInfo = when (registrationId) {
+            "datagsm" -> DataGsmOAuth2UserInfo(oAuth2User.attributes)
+            else -> GoogleOAuth2UserInfo(oAuth2User.attributes)
+        }
+        val provider = when (registrationId) {
+            "datagsm" -> AuthProvider.DATAGSM
+            else -> AuthProvider.GOOGLE
+        }
+        if (userInfo is DataGsmOAuth2UserInfo && userInfo.status != "ACTIVE") {
+            throw OAuth2AuthenticationException(
+                OAuth2Error("inactive_account"),
+                "DataGSM 계정 상태(${userInfo.status})로는 로그인할 수 없습니다",
+            )
+        }
+
         val isAdminEmail = userInfo.email.lowercase() in adminEmails
         val session = currentSession()
 
@@ -52,7 +67,7 @@ class CustomOAuth2UserService(
                         User(
                             email = userInfo.email,
                             name = userInfo.name,
-                            provider = AuthProvider.GOOGLE,
+                            provider = provider,
                             providerId = userInfo.id,
                             role = Role.ADMIN,
                         ),
@@ -68,9 +83,10 @@ class CustomOAuth2UserService(
                         User(
                             email = userInfo.email,
                             name = userInfo.name,
-                            provider = AuthProvider.GOOGLE,
+                            provider = provider,
                             providerId = userInfo.id,
-                            role = resolveSignupRole(session),
+                            role = resolveSignupRole(session, userInfo),
+                            studentNumber = (userInfo as? DataGsmOAuth2UserInfo)?.studentNumber,
                         ),
                     )
                 }
@@ -81,7 +97,18 @@ class CustomOAuth2UserService(
         return UserPrincipal(user, oAuth2User.attributes)
     }
 
-    private fun resolveSignupRole(session: HttpSession): Role {
+    private fun resolveSignupRole(session: HttpSession, userInfo: OAuth2UserInfo): Role {
+        if (userInfo is DataGsmOAuth2UserInfo) {
+            return when (userInfo.objectType) {
+                "STUDENT" -> Role.STUDENT
+                "TEACHER" -> Role.TEACHER
+                else -> throw OAuth2AuthenticationException(
+                    OAuth2Error("unsupported_object_type"),
+                    "DataGSM 계정 유형(${userInfo.objectType})을 지원하지 않습니다",
+                )
+            }
+        }
+
         val roleName = session.getAttribute(AuthController.SIGNUP_ROLE_SESSION_KEY) as String?
             ?: throw OAuth2AuthenticationException(
                 OAuth2Error("role_required"),
