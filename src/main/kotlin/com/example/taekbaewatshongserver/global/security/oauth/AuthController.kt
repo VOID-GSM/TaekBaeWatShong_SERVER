@@ -16,19 +16,36 @@ class AuthController(
 ) {
 
     @GetMapping("/auth/login")
-    fun login(@RequestParam role: Role, request: HttpServletRequest, response: HttpServletResponse) {
+    fun login(
+        @RequestParam role: Role,
+        @RequestParam(defaultValue = "google") provider: String,
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+    ) {
         if (role != Role.STUDENT && role != Role.TEACHER) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "role은 STUDENT 또는 TEACHER만 선택할 수 있습니다")
         }
+        validateProvider(provider)
         request.session.setAttribute(LOGIN_TYPE_SESSION_KEY, LoginType.CLIENT.name)
         request.session.setAttribute(SIGNUP_ROLE_SESSION_KEY, role.name)
-        response.sendRedirect("/oauth2/authorization/google")
+        response.sendRedirect("/oauth2/authorization/$provider")
     }
 
     @GetMapping("/auth/admin/login")
-    fun adminLogin(request: HttpServletRequest, response: HttpServletResponse) {
+    fun adminLogin(
+        @RequestParam(defaultValue = "google") provider: String,
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+    ) {
+        validateProvider(provider)
         request.session.setAttribute(LOGIN_TYPE_SESSION_KEY, LoginType.ADMIN.name)
-        response.sendRedirect("/oauth2/authorization/google")
+        response.sendRedirect("/oauth2/authorization/$provider")
+    }
+
+    private fun validateProvider(provider: String) {
+        if (provider != "google" && provider != "datagsm") {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "provider는 google 또는 datagsm만 선택할 수 있습니다")
+        }
     }
 
     @GetMapping("/auth/token")
