@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
-import org.springframework.transaction.annotation.Transactional
 
 @Component
 class UnclaimedReminderScheduler(
@@ -29,7 +28,6 @@ class UnclaimedReminderScheduler(
         private val DEFAULT_REMINDER_DAYS = listOf(1, 3, 5)
     }
 
-    @Transactional
     @Scheduled(cron = "\${notification.unclaimed-reminder.cron:0 0 8 * * *}")
     fun sendUnclaimedReminders() {
         val arrivedParcels = parcelRepository.findAllByStatusOrderByCreatedAtDesc(ParcelStatus.ARRIVED)
@@ -38,22 +36,26 @@ class UnclaimedReminderScheduler(
             val unclaimedDays = parcel.unclaimedDays
             if (unclaimedDays !in reminderDays) continue
 
-            val alreadySent = notificationRepository.existsByParcelAndTypeAndUnclaimedDays(
-                parcel = parcel,
-                type = NotificationType.UNCLAIMED_REMINDER,
-                unclaimedDays = unclaimedDays
-            )
-            if (alreadySent) continue
+            try {
+                val alreadySent = notificationRepository.existsByParcelAndTypeAndUnclaimedDays(
+                    parcel = parcel,
+                    type = NotificationType.UNCLAIMED_REMINDER,
+                    unclaimedDays = unclaimedDays
+                )
+                if (alreadySent) continue
 
-            log.info("[알림 발생] 수신자: {} | 내용: [{}] 택배가 도착 후 {}일째 미수령 상태입니다.", parcel.owner.name, parcel.alias, unclaimedDays)
-            notificationService.create(
-                recipient = parcel.owner,
-                parcel = parcel,
-                type = NotificationType.UNCLAIMED_REMINDER,
-                title = "택배 수령이 지연되고 있습니다",
-                message = "[${parcel.alias}] 택배가 도착 후 ${unclaimedDays}일째 보관 중입니다. 수령해주세요.",
-                unclaimedDays = unclaimedDays
-            )
+                notificationService.create(
+                    recipient = parcel.owner,
+                    parcel = parcel,
+                    type = NotificationType.UNCLAIMED_REMINDER,
+                    title = "택배 수령이 지연되고 있습니다",
+                    message = "[${parcel.alias}] 택배가 도착 후 ${unclaimedDays}일째 보관 중입니다. 수령해주세요.",
+                    unclaimedDays = unclaimedDays
+                )
+                log.info("[알림 발생] 수신자: {} | 내용: [{}] 택배가 도착 후 {}일째 미수령 상태입니다.", parcel.owner.name, parcel.alias, unclaimedDays)
+            } catch (e: Exception) {
+                log.error("[알림 발생 실패] parcelId: {}, unclaimedDays: {}", parcel.id, unclaimedDays, e)
+            }
         }
     }
 }
