@@ -30,7 +30,13 @@ class EmailAuthService(
         if (request.role != Role.STUDENT && request.role != Role.TEACHER) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "role은 STUDENT 또는 TEACHER만 선택할 수 있습니다")
         }
-        return createLocalUser(email = request.email, password = request.password, name = request.name, role = request.role)
+        return createLocalUser(
+            email = request.email,
+            password = request.password,
+            name = request.name,
+            role = request.role,
+            studentNumber = request.studentNumber,
+        )
     }
 
     fun adminSignUp(request: AdminSignUpRequest): TokenResponse {
@@ -46,7 +52,13 @@ class EmailAuthService(
     fun adminLogin(request: EmailLoginRequest): TokenResponse =
         authenticate(request.email, request.password, requiredRole = Role.ADMIN)
 
-    private fun createLocalUser(email: String, password: String, name: String, role: Role): TokenResponse {
+    private fun createLocalUser(
+        email: String,
+        password: String,
+        name: String,
+        role: Role,
+        studentNumber: String? = null,
+    ): TokenResponse {
         if (userRepository.existsByEmail(email)) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "이미 가입된 이메일입니다")
         }
@@ -59,6 +71,7 @@ class EmailAuthService(
                     provider = AuthProvider.LOCAL,
                     password = passwordEncoder.encode(password),
                     role = role,
+                    studentNumber = studentNumber,
                 ),
             )
         } catch (e: DataIntegrityViolationException) {
