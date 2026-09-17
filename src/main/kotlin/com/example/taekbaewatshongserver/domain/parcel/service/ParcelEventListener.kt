@@ -2,6 +2,8 @@ package com.example.taekbaewatshongserver.domain.parcel.service
 
 import com.example.taekbaewatshongserver.domain.notification.entity.NotificationType
 import com.example.taekbaewatshongserver.domain.notification.service.NotificationService
+import com.example.taekbaewatshongserver.domain.parcel.entity.Parcel
+import com.example.taekbaewatshongserver.domain.parcel.repository.ParcelRepository
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Component
@@ -10,6 +12,7 @@ import org.springframework.transaction.event.TransactionalEventListener
 
 @Component
 class ParcelEventListener(
+    private val parcelRepository: ParcelRepository,
     private val notificationService: NotificationService
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -17,7 +20,7 @@ class ParcelEventListener(
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handleParcelRegisteredEvent(event: ParcelRegisteredEvent) {
-        val parcel = event.parcel
+        val parcel = findParcelOrNull(event.parcelId) ?: return
         val owner = parcel.owner
 
         notificationService.create(
@@ -33,7 +36,7 @@ class ParcelEventListener(
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handleParcelArrivedEvent(event: ParcelArrivedEvent) {
-        val parcel = event.parcel
+        val parcel = findParcelOrNull(event.parcelId) ?: return
         val owner = parcel.owner
 
         notificationService.create(
@@ -49,7 +52,7 @@ class ParcelEventListener(
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handleParcelZoneAssignedEvent(event: ParcelZoneAssignedEvent) {
-        val parcel = event.parcel
+        val parcel = findParcelOrNull(event.parcelId) ?: return
         val owner = parcel.owner
 
         notificationService.create(
@@ -65,7 +68,7 @@ class ParcelEventListener(
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handleParcelClaimedEvent(event: ParcelClaimedEvent) {
-        val parcel = event.parcel
+        val parcel = findParcelOrNull(event.parcelId) ?: return
         val owner = parcel.owner
 
         notificationService.create(
@@ -76,5 +79,13 @@ class ParcelEventListener(
             message = "[${parcel.alias}] 택배 수령이 완료되었습니다."
         )
         log.info("[알림 발생] 수신자: {} | 내용: [{}] 택배 수령이 완료되었습니다.", owner.name, parcel.alias)
+    }
+
+    private fun findParcelOrNull(parcelId: Long): Parcel? {
+        val parcel = parcelRepository.findById(parcelId).orElse(null)
+        if (parcel == null) {
+            log.warn("[알림 발생 실패] 택배를 찾을 수 없습니다. parcelId: {}", parcelId)
+        }
+        return parcel
     }
 }
