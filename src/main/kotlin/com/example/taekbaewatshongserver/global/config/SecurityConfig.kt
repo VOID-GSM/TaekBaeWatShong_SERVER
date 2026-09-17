@@ -51,6 +51,7 @@ class SecurityConfig(
                     "/auth/email/admin/login",
                     "/oauth2/**",
                     "/login/**",
+                    "/error",
                 ).permitAll()
                 it.anyRequest().authenticated()
             }
