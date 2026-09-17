@@ -6,7 +6,15 @@ import jakarta.persistence.*
 import java.time.LocalDateTime
 
 @Entity
-@Table(name = "notifications")
+@Table(
+    name = "notifications",
+    uniqueConstraints = [
+        UniqueConstraint(
+            name = "uk_notification_parcel_type_unclaimed_days",
+            columnNames = ["parcel_id", "type", "unclaimedDays"]
+        )
+    ]
+)
 class Notification(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
