@@ -28,11 +28,11 @@ class CustomOAuth2UserService(
         val oAuth2User = super.loadUser(userRequest)
         val registrationId = userRequest.clientRegistration.registrationId
         val userInfo = when (registrationId) {
-            "datagsm" -> DataGsmOAuth2UserInfo(oAuth2User.attributes)
+            AuthController.PROVIDER_DATAGSM -> DataGsmOAuth2UserInfo(oAuth2User.attributes)
             else -> GoogleOAuth2UserInfo(oAuth2User.attributes)
         }
         val provider = when (registrationId) {
-            "datagsm" -> AuthProvider.DATAGSM
+            AuthController.PROVIDER_DATAGSM -> AuthProvider.DATAGSM
             else -> AuthProvider.GOOGLE
         }
         if (userInfo is DataGsmOAuth2UserInfo && userInfo.status != "ACTIVE") {
@@ -59,7 +59,7 @@ class CustomOAuth2UserService(
                     throw OAuth2AuthenticationException(OAuth2Error("not_admin"), "관리자 계정이 아닙니다")
                 }
                 if (existing != null) {
-                    existing.name = userInfo.name
+                    applyUserInfo(existing, userInfo)
                     existing.role = Role.ADMIN
                     userRepository.save(existing)
                 } else {
@@ -76,7 +76,7 @@ class CustomOAuth2UserService(
             }
             AuthController.LoginType.CLIENT -> {
                 if (existing != null) {
-                    existing.name = userInfo.name
+                    applyUserInfo(existing, userInfo)
                     userRepository.save(existing)
                 } else {
                     userRepository.save(
@@ -98,8 +98,11 @@ class CustomOAuth2UserService(
     }
 
     private fun resolveSignupRole(session: HttpSession, userInfo: OAuth2UserInfo): Role {
+        val requestedRoleName = session.getAttribute(AuthController.SIGNUP_ROLE_SESSION_KEY) as String?
+        session.removeAttribute(AuthController.SIGNUP_ROLE_SESSION_KEY)
+
         if (userInfo is DataGsmOAuth2UserInfo) {
-            return when (userInfo.objectType) {
+            val resolvedRole = when (userInfo.objectType) {
                 "STUDENT" -> Role.STUDENT
                 "TEACHER" -> Role.TEACHER
                 else -> throw OAuth2AuthenticationException(
@@ -107,15 +110,30 @@ class CustomOAuth2UserService(
                     "DataGSM 계정 유형(${userInfo.objectType})을 지원하지 않습니다",
                 )
             }
+            if (requestedRoleName != null && requestedRoleName != resolvedRole.name) {
+                throw OAuth2AuthenticationException(
+                    OAuth2Error("role_mismatch"),
+                    "요청한 role($requestedRoleName)과 DataGSM 계정 유형(${userInfo.objectType})이 일치하지 않습니다",
+                )
+            }
+            return resolvedRole
         }
 
-        val roleName = session.getAttribute(AuthController.SIGNUP_ROLE_SESSION_KEY) as String?
+        val roleName = requestedRoleName
             ?: throw OAuth2AuthenticationException(
                 OAuth2Error("role_required"),
                 "회원가입을 위해 /auth/login?role=STUDENT 또는 /auth/login?role=TEACHER 로 로그인해주세요",
             )
-        session.removeAttribute(AuthController.SIGNUP_ROLE_SESSION_KEY)
         return Role.valueOf(roleName)
+    }
+
+    private fun applyUserInfo(user: User, userInfo: OAuth2UserInfo) {
+        if (userInfo !is DataGsmOAuth2UserInfo || userInfo.hasKnownName) {
+            user.name = userInfo.name
+        }
+        if (userInfo is DataGsmOAuth2UserInfo) {
+            user.studentNumber = userInfo.studentNumber
+        }
     }
 
     private fun currentSession(): HttpSession =

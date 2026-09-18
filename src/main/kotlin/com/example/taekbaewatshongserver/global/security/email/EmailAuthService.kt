@@ -35,7 +35,7 @@ class EmailAuthService(
             password = request.password,
             name = request.name,
             role = request.role,
-            studentNumber = request.studentNumber,
+            studentNumber = request.studentNumber.takeIf { request.role == Role.STUDENT },
         )
     }
 

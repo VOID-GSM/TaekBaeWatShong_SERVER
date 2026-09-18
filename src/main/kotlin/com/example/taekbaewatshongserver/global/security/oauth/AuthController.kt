@@ -17,35 +17,40 @@ class AuthController(
 
     @GetMapping("/auth/login")
     fun login(
-        @RequestParam role: Role,
-        @RequestParam(defaultValue = "google") provider: String,
+        @RequestParam(required = false) role: Role?,
+        @RequestParam(defaultValue = PROVIDER_GOOGLE) provider: String,
         request: HttpServletRequest,
         response: HttpServletResponse,
     ) {
-        if (role != Role.STUDENT && role != Role.TEACHER) {
+        val normalizedProvider = validateProvider(provider)
+        // datagsm 계정은 objectType(STUDENT/TEACHER)으로 역할을 결정하므로 role 파라미터가 없어도 된다.
+        if (normalizedProvider != PROVIDER_DATAGSM && (role != Role.STUDENT && role != Role.TEACHER)) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "role은 STUDENT 또는 TEACHER만 선택할 수 있습니다")
         }
-        validateProvider(provider)
         request.session.setAttribute(LOGIN_TYPE_SESSION_KEY, LoginType.CLIENT.name)
-        request.session.setAttribute(SIGNUP_ROLE_SESSION_KEY, role.name)
-        response.sendRedirect("/oauth2/authorization/$provider")
+        if (role == Role.STUDENT || role == Role.TEACHER) {
+            request.session.setAttribute(SIGNUP_ROLE_SESSION_KEY, role.name)
+        }
+        response.sendRedirect("/oauth2/authorization/$normalizedProvider")
     }
 
     @GetMapping("/auth/admin/login")
     fun adminLogin(
-        @RequestParam(defaultValue = "google") provider: String,
+        @RequestParam(defaultValue = PROVIDER_GOOGLE) provider: String,
         request: HttpServletRequest,
         response: HttpServletResponse,
     ) {
-        validateProvider(provider)
+        val normalizedProvider = validateProvider(provider)
         request.session.setAttribute(LOGIN_TYPE_SESSION_KEY, LoginType.ADMIN.name)
-        response.sendRedirect("/oauth2/authorization/$provider")
+        response.sendRedirect("/oauth2/authorization/$normalizedProvider")
     }
 
-    private fun validateProvider(provider: String) {
-        if (provider != "google" && provider != "datagsm") {
+    private fun validateProvider(provider: String): String {
+        val normalized = provider.lowercase()
+        if (normalized != PROVIDER_GOOGLE && normalized != PROVIDER_DATAGSM) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "provider는 google 또는 datagsm만 선택할 수 있습니다")
         }
+        return normalized
     }
 
     @GetMapping("/auth/token")
@@ -63,5 +68,7 @@ class AuthController(
     companion object {
         const val SIGNUP_ROLE_SESSION_KEY = "signup_role"
         const val LOGIN_TYPE_SESSION_KEY = "login_type"
+        const val PROVIDER_GOOGLE = "google"
+        const val PROVIDER_DATAGSM = "datagsm"
     }
 }
