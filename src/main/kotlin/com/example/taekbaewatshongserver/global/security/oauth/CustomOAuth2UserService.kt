@@ -35,12 +35,7 @@ class CustomOAuth2UserService(
             AuthController.PROVIDER_DATAGSM -> AuthProvider.DATAGSM
             else -> AuthProvider.GOOGLE
         }
-        if (userInfo is DataGsmOAuth2UserInfo && userInfo.status != "ACTIVE") {
-            throw OAuth2AuthenticationException(
-                OAuth2Error("inactive_account"),
-                "DataGSM 계정 상태(${userInfo.status})로는 로그인할 수 없습니다",
-            )
-        }
+        requireActiveAccount(userInfo)
 
         val isAdminEmail = userInfo.email.lowercase() in adminEmails
         val session = currentSession()
@@ -133,6 +128,15 @@ class CustomOAuth2UserService(
         }
         if (userInfo is DataGsmOAuth2UserInfo) {
             user.studentNumber = userInfo.studentNumber
+        }
+    }
+
+    internal fun requireActiveAccount(userInfo: OAuth2UserInfo) {
+        if (userInfo is DataGsmOAuth2UserInfo && userInfo.status != "ACTIVE") {
+            throw OAuth2AuthenticationException(
+                OAuth2Error("inactive_account"),
+                "DataGSM 계정 상태(${userInfo.status})로는 로그인할 수 없습니다",
+            )
         }
     }
 
