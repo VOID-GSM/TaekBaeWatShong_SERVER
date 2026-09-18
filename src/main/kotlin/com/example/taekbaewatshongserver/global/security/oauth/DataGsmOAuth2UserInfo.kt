@@ -15,6 +15,10 @@ class DataGsmOAuth2UserInfo(
     override val name: String
         get() = person()["name"]?.toString() ?: "Unknown"
 
+    // teacher 객체의 필드명이 아직 확인되지 않아, name을 못 가져온 경우 기존 이름을 덮어쓰지 않기 위한 플래그
+    val hasKnownName: Boolean
+        get() = person()["name"] != null
+
     val status: String?
         get() = attributes["status"]?.toString()
 

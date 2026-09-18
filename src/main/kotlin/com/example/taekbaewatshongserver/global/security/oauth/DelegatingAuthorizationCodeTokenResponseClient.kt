@@ -13,7 +13,7 @@ class DelegatingAuthorizationCodeTokenResponseClient(
 ) : OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> {
 
     override fun getTokenResponse(authorizationGrantRequest: OAuth2AuthorizationCodeGrantRequest): OAuth2AccessTokenResponse {
-        val client = if (authorizationGrantRequest.clientRegistration.registrationId == "datagsm") {
+        val client = if (authorizationGrantRequest.clientRegistration.registrationId == AuthController.PROVIDER_DATAGSM) {
             dataGsmClient
         } else {
             defaultClient

@@ -32,7 +32,7 @@ class DataGsmAuthorizationCodeTokenResponseClient : OAuth2AccessTokenResponseCli
             "code" to authorizationGrantRequest.authorizationExchange.authorizationResponse.code,
             "client_id" to clientRegistration.clientId,
             "client_secret" to clientRegistration.clientSecret,
-            "redirect_uri" to clientRegistration.redirectUri,
+            "redirect_uri" to authorizationGrantRequest.authorizationExchange.authorizationRequest.redirectUri,
         )
         val headers = HttpHeaders().apply {
             contentType = MediaType.APPLICATION_JSON
