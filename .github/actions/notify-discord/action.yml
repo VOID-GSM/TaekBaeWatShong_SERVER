@@ -9,7 +9,7 @@ inputs:
     description: 실행 결과 (success / failure)
     required: true
   kind:
-    description: 알림 종류 표시 (예: CI, CD)
+    description: "알림 종류 표시 (예: CI, CD)"
     required: true
   stages:
     description: 단계별 결과 문자열 (선택)
