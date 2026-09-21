@@ -103,7 +103,7 @@ jobs:
               *) printf '⏭️' ;;
             esac
           }
-          echo "summary=$(icon "$LINT_OUTCOME") 린팅  $(icon "$TEST_OUTCOME") 테스트  $(icon "$BUILD_OUTCOME") 빌드" >> "$GITHUB_OUTPUT"
+          echo "summary=$(icon "$LINT_OUTCOME") 린팅  ›  $(icon "$TEST_OUTCOME") 테스트  ›  $(icon "$BUILD_OUTCOME") 빌드" >> "$GITHUB_OUTPUT"
 
       - name: Notify Discord
         if: ${{ !cancelled() }}

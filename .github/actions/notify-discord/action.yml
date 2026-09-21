@@ -28,9 +28,13 @@ runs:
         PR_NUMBER: ${{ github.event.pull_request.number }}
         PR_TITLE: ${{ github.event.pull_request.title }}
         PR_URL: ${{ github.event.pull_request.html_url }}
+        BASE_REF: ${{ github.base_ref }}
         HEAD_REF: ${{ github.head_ref || github.ref_name }}
         COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        COMMIT_SHA: ${{ github.sha }}
         ACTOR: ${{ github.actor }}
+        REPO: ${{ github.repository }}
+        SERVER_URL: ${{ github.server_url }}
         RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       run: |
         if [ -z "$DISCORD_WEBHOOK_URL" ]; then
@@ -39,39 +43,59 @@ runs:
         fi
 
         if [ "$JOB_STATUS" = "success" ]; then
-          TITLE="✅ ${KIND} 성공"
+          RESULT="성공"
+          ICON="✅"
           COLOR=5763719
         else
-          TITLE="❌ ${KIND} 실패"
+          RESULT="실패"
+          ICON="❌"
           COLOR=15548997
         fi
 
+        SHORT_SHA="$(printf '%s' "$COMMIT_SHA" | cut -c1-7)"
+        COMMIT_URL="${SERVER_URL}/${REPO}/commit/${COMMIT_SHA}"
+
         if [ "$EVENT_NAME" = "pull_request" ]; then
-          TARGET="[#${PR_NUMBER} ${PR_TITLE}](${PR_URL})"
+          # PR은 제목 자체를 임베드 제목으로 올려 가장 크게 보이도록 함
+          HEADLINE="$(printf '%s' "#${PR_NUMBER}  ${PR_TITLE}" | cut -c1-200)"
+          LINK="$PR_URL"
+          ROUTE="\`${HEAD_REF}\` → \`${BASE_REF}\`"
+          CONTEXT="🔀 Pull Request [#${PR_NUMBER}](${PR_URL})"
         else
-          TARGET="$(printf '%s' "$COMMIT_MESSAGE" | head -n 1)"
+          HEADLINE="$(printf '%s' "$COMMIT_MESSAGE" | head -n 1 | cut -c1-200)"
+          LINK="$COMMIT_URL"
+          ROUTE="\`${HEAD_REF}\`"
+          CONTEXT="📦 Push [\`${SHORT_SHA}\`](${COMMIT_URL})"
         fi
-        [ -n "$TARGET" ] || TARGET="-"
+        [ -n "$HEADLINE" ] || HEADLINE="(제목 없음)"
 
-        FIELDS="$(jq -n \
-          --arg target "$TARGET" \
-          --arg branch "$HEAD_REF" \
-          --arg actor "$ACTOR" \
-          '[
-            { name: "대상", value: $target, inline: false },
-            { name: "브랜치", value: $branch, inline: true },
-            { name: "작성자", value: $actor, inline: true }
-          ]')"
-
+        DESCRIPTION="${CONTEXT} · ${ROUTE}"
         if [ -n "$STAGES" ]; then
-          FIELDS="$(printf '%s' "$FIELDS" | jq --arg stages "$STAGES" \
-            '. + [{ name: "단계", value: $stages, inline: false }]')"
+          DESCRIPTION="${DESCRIPTION}"$'\n\n'"${STAGES}"
         fi
+        DESCRIPTION="${DESCRIPTION}"$'\n\n'"[📋 실행 로그 보기](${RUN_URL})"
 
-        printf '%s' "$FIELDS" | jq \
-          --arg title "$TITLE" \
+        jq -n \
+          --arg name "$ICON  ${KIND} ${RESULT}" \
+          --arg headline "$HEADLINE" \
+          --arg link "$LINK" \
+          --arg description "$DESCRIPTION" \
           --argjson color "$COLOR" \
-          --arg url "$RUN_URL" \
-          '{ embeds: [{ title: $title, url: $url, color: $color, fields: . }] }' \
+          --arg actor "$ACTOR" \
+          --arg actor_url "https://github.com/${ACTOR}" \
+          --arg avatar "https://github.com/${ACTOR}.png?size=64" \
+          --arg repo "$REPO" \
+          --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          '{
+            embeds: [{
+              author: { name: $name },
+              title: $headline,
+              url: $link,
+              description: $description,
+              color: $color,
+              footer: { text: $repo + "  •  " + $actor, icon_url: $avatar },
+              timestamp: $ts
+            }]
+          }' \
         | curl -sS -f -X POST -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL" \
         || echo "::warning::Discord 알림 전송에 실패했습니다."
