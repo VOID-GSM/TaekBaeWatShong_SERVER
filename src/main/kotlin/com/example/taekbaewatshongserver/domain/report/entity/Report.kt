@@ -34,7 +34,7 @@ class Report(
     val createdAt: LocalDateTime = LocalDateTime.now(),
 
     @Column(nullable = false)
-    var updatedAt: LocalDateTime = LocalDateTime.now()
+    var updatedAt: LocalDateTime = LocalDateTime.now(),
 ) {
     fun updateProgress(newProgress: ReportProgress) {
         this.progress = newProgress

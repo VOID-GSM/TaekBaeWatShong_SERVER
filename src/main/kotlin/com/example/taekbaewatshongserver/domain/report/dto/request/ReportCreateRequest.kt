@@ -5,5 +5,5 @@ import java.time.LocalDateTime
 data class ReportCreateRequest(
     val invoiceNumber: String,
     val lostEstimatedAt: LocalDateTime,
-    val content: String
+    val content: String,
 )

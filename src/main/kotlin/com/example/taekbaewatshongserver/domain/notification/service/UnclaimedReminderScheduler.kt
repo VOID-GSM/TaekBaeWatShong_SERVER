@@ -15,7 +15,7 @@ class UnclaimedReminderScheduler(
     private val parcelRepository: ParcelRepository,
     private val notificationRepository: NotificationRepository,
     private val notificationService: NotificationService,
-    @Value("\${notification.unclaimed-reminder.days:1,3,5}") reminderDaysProperty: String
+    @Value("\${notification.unclaimed-reminder.days:1,3,5}") reminderDaysProperty: String,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val reminderDays = reminderDaysProperty
@@ -42,7 +42,7 @@ class UnclaimedReminderScheduler(
             val alreadySent = notificationRepository.existsByParcelAndTypeAndUnclaimedDays(
                 parcel = parcel,
                 type = NotificationType.UNCLAIMED_REMINDER,
-                unclaimedDays = targetDay
+                unclaimedDays = targetDay,
             )
             if (alreadySent) continue
 
@@ -53,7 +53,7 @@ class UnclaimedReminderScheduler(
                     type = NotificationType.UNCLAIMED_REMINDER,
                     title = "택배 수령이 지연되고 있습니다",
                     message = "[${parcel.alias}] 택배가 도착 후 ${elapsedDays}일째 보관 중입니다. 수령해주세요.",
-                    unclaimedDays = targetDay
+                    unclaimedDays = targetDay,
                 )
                 log.info("[알림 발생] 수신자: {} | 내용: [{}] 택배가 도착 후 {}일째 미수령 상태입니다.", parcel.owner.name, parcel.alias, elapsedDays)
             } catch (e: DataIntegrityViolationException) {

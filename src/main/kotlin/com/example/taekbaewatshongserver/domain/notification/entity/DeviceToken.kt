@@ -23,7 +23,7 @@ class DeviceToken(
     var owner: User,
 
     @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
+    val createdAt: LocalDateTime = LocalDateTime.now(),
 ) {
     fun reassign(newOwner: User, newPlatform: DevicePlatform) {
         this.owner = newOwner

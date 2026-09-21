@@ -16,14 +16,14 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/notification")
 class NotificationController(
     private val notificationService: NotificationService,
-    private val deviceTokenService: DeviceTokenService
+    private val deviceTokenService: DeviceTokenService,
 ) {
 
     @GetMapping
     fun getNotifications(
         @AuthenticationPrincipal user: User,
         @RequestParam(required = false) cursor: Long?,
-        @RequestParam(required = false) size: Int?
+        @RequestParam(required = false) size: Int?,
     ): ResponseEntity<NotificationListResponse> {
         val response = notificationService.getNotifications(user, cursor, size)
         return ResponseEntity.ok(response)
@@ -32,7 +32,7 @@ class NotificationController(
     @PatchMapping("/{notificationId}/read")
     fun markAsRead(
         @AuthenticationPrincipal user: User,
-        @PathVariable notificationId: Long
+        @PathVariable notificationId: Long,
     ): ResponseEntity<NotificationReadResponse> {
         val response = notificationService.markAsRead(user, notificationId)
         return ResponseEntity.ok(response)
@@ -41,7 +41,7 @@ class NotificationController(
     @PostMapping("/token")
     fun registerDeviceToken(
         @AuthenticationPrincipal user: User,
-        @RequestBody request: DeviceTokenRegisterRequest
+        @RequestBody request: DeviceTokenRegisterRequest,
     ): ResponseEntity<DeviceTokenResponse> {
         val response = deviceTokenService.registerDeviceToken(user, request)
         return ResponseEntity.status(HttpStatus.CREATED).body(response)

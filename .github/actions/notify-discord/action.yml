@@ -1,0 +1,101 @@
+name: Notify Discord
+description: 워크플로 실행 결과를 Discord 웹훅으로 전송합니다.
+
+inputs:
+  webhook:
+    description: Discord 웹훅 URL (없으면 전송을 건너뜁니다)
+    required: false
+  status:
+    description: 실행 결과 (success / failure)
+    required: true
+  kind:
+    description: "알림 종류 표시 (예: CI, CD)"
+    required: true
+  stages:
+    description: 단계별 결과 문자열 (선택)
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        DISCORD_WEBHOOK_URL: ${{ inputs.webhook }}
+        JOB_STATUS: ${{ inputs.status }}
+        KIND: ${{ inputs.kind }}
+        STAGES: ${{ inputs.stages }}
+        EVENT_NAME: ${{ github.event_name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        PR_URL: ${{ github.event.pull_request.html_url }}
+        BASE_REF: ${{ github.base_ref }}
+        HEAD_REF: ${{ github.head_ref || github.ref_name }}
+        COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        COMMIT_SHA: ${{ github.sha }}
+        ACTOR: ${{ github.actor }}
+        REPO: ${{ github.repository }}
+        SERVER_URL: ${{ github.server_url }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+          echo "DISCORD_WEBHOOK_URL 시크릿이 없어 알림을 건너뜁니다."
+          exit 0
+        fi
+
+        if [ "$JOB_STATUS" = "success" ]; then
+          RESULT="성공"
+          ICON="✅"
+          COLOR=5763719
+        else
+          RESULT="실패"
+          ICON="❌"
+          COLOR=15548997
+        fi
+
+        SHORT_SHA="$(printf '%s' "$COMMIT_SHA" | cut -c1-7)"
+        COMMIT_URL="${SERVER_URL}/${REPO}/commit/${COMMIT_SHA}"
+
+        if [ "$EVENT_NAME" = "pull_request" ]; then
+          # PR은 제목 자체를 임베드 제목으로 올려 가장 크게 보이도록 함
+          HEADLINE="$(printf '%s' "#${PR_NUMBER}  ${PR_TITLE}" | cut -c1-200)"
+          LINK="$PR_URL"
+          ROUTE="\`${HEAD_REF}\` → \`${BASE_REF}\`"
+          CONTEXT="🔀 Pull Request [#${PR_NUMBER}](${PR_URL})"
+        else
+          HEADLINE="$(printf '%s' "$COMMIT_MESSAGE" | head -n 1 | cut -c1-200)"
+          LINK="$COMMIT_URL"
+          ROUTE="\`${HEAD_REF}\`"
+          CONTEXT="📦 Push [\`${SHORT_SHA}\`](${COMMIT_URL})"
+        fi
+        [ -n "$HEADLINE" ] || HEADLINE="(제목 없음)"
+
+        DESCRIPTION="${CONTEXT} · ${ROUTE}"
+        if [ -n "$STAGES" ]; then
+          DESCRIPTION="${DESCRIPTION}"$'\n\n'"${STAGES}"
+        fi
+        DESCRIPTION="${DESCRIPTION}"$'\n\n'"[📋 실행 로그 보기](${RUN_URL})"
+
+        jq -n \
+          --arg name "$ICON  ${KIND} ${RESULT}" \
+          --arg headline "$HEADLINE" \
+          --arg link "$LINK" \
+          --arg description "$DESCRIPTION" \
+          --argjson color "$COLOR" \
+          --arg actor "$ACTOR" \
+          --arg actor_url "https://github.com/${ACTOR}" \
+          --arg avatar "https://github.com/${ACTOR}.png?size=64" \
+          --arg repo "$REPO" \
+          --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          '{
+            embeds: [{
+              author: { name: $name },
+              title: $headline,
+              url: $link,
+              description: $description,
+              color: $color,
+              footer: { text: $repo + "  •  " + $actor, icon_url: $avatar },
+              timestamp: $ts
+            }]
+          }' \
+        | curl -sS -f -X POST -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL" \
+        || echo "::warning::Discord 알림 전송에 실패했습니다."

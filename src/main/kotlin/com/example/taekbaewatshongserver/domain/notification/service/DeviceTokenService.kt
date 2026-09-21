@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 @Transactional(readOnly = true)
 class DeviceTokenService(
-    private val deviceTokenRepository: DeviceTokenRepository
+    private val deviceTokenRepository: DeviceTokenRepository,
 ) {
 
     @Transactional
@@ -30,7 +30,7 @@ class DeviceTokenService(
             ?: DeviceToken(
                 deviceToken = request.deviceToken,
                 platform = platform,
-                owner = user
+                owner = user,
             )
 
         return try {

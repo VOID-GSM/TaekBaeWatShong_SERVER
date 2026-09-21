@@ -10,17 +10,15 @@ data class ParcelZoneAssignResponse(
     val invoiceNumber: String,
     val zone: Zone?,
     val status: ParcelStatus,
-    val arrivedAt: LocalDateTime?
+    val arrivedAt: LocalDateTime?,
 ) {
     companion object {
-        fun from(parcel: Parcel): ParcelZoneAssignResponse {
-            return ParcelZoneAssignResponse(
-                id = parcel.id,
-                invoiceNumber = parcel.invoiceNumber,
-                zone = parcel.zone,
-                status = parcel.status,
-                arrivedAt = parcel.arrivedAt
-            )
-        }
+        fun from(parcel: Parcel): ParcelZoneAssignResponse = ParcelZoneAssignResponse(
+            id = parcel.id,
+            invoiceNumber = parcel.invoiceNumber,
+            zone = parcel.zone,
+            status = parcel.status,
+            arrivedAt = parcel.arrivedAt,
+        )
     }
 }

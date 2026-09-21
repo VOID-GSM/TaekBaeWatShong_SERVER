@@ -29,13 +29,11 @@ class DataGsmOAuth2UserInfo(
         get() = person()["studentNumber"]?.toString()
 
     @Suppress("UNCHECKED_CAST")
-    private fun person(): Map<String, Any> =
-        (attributes["student"] ?: attributes["teacher"]) as? Map<String, Any> ?: emptyMap()
+    private fun person(): Map<String, Any> = (attributes["student"] ?: attributes["teacher"]) as? Map<String, Any> ?: emptyMap()
 
-    private fun requiredAttribute(key: String): String =
-        attributes[key]?.toString()
-            ?: throw OAuth2AuthenticationException(
-                OAuth2Error("missing_attribute"),
-                "DataGSM 계정에서 '$key' 정보를 가져오지 못했습니다",
-            )
+    private fun requiredAttribute(key: String): String = attributes[key]?.toString()
+        ?: throw OAuth2AuthenticationException(
+            OAuth2Error("missing_attribute"),
+            "DataGSM 계정에서 '$key' 정보를 가져오지 못했습니다",
+        )
 }

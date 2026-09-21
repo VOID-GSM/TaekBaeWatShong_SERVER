@@ -28,7 +28,7 @@ interface ParcelRepository : JpaRepository<Parcel, Long> {
     fun findAllByOwnerAndStatusAndClaimedAtGreaterThanEqualOrderByCreatedAtDesc(
         owner: User,
         status: ParcelStatus,
-        claimedAt: LocalDateTime
+        claimedAt: LocalDateTime,
     ): List<Parcel>
 
     @EntityGraph(attributePaths = ["owner"])
@@ -38,15 +38,17 @@ interface ParcelRepository : JpaRepository<Parcel, Long> {
     fun findAllByStatusOrderByCreatedAtDesc(status: ParcelStatus): List<Parcel>
 
     @EntityGraph(attributePaths = ["owner"])
-    @Query("""
+    @Query(
+        """
         SELECT p FROM Parcel p 
         WHERE p.status = :status 
           AND p.claimedAt >= :threeDaysAgo 
         ORDER BY p.createdAt DESC
-    """)
+    """,
+    )
     fun findClaimedParcelsWithinThreeDays(
         @Param("status") status: ParcelStatus = ParcelStatus.CLAIMED,
-        @Param("threeDaysAgo") threeDaysAgo: LocalDateTime
+        @Param("threeDaysAgo") threeDaysAgo: LocalDateTime,
     ): List<Parcel>
 
     @EntityGraph(attributePaths = ["owner"])

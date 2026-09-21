@@ -15,13 +15,13 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping("/parcel")
 class ParcelController(
-    private val parcelService: ParcelService
+    private val parcelService: ParcelService,
 ) {
 
     @PostMapping
     fun registerParcel(
         @AuthenticationPrincipal user: User,
-        @RequestBody request: ParcelRegisterRequest
+        @RequestBody request: ParcelRegisterRequest,
     ): ResponseEntity<ParcelResponse> {
         val response = parcelService.registerParcel(user, request)
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
@@ -30,7 +30,7 @@ class ParcelController(
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     fun getAllParcels(
-        @RequestParam(required = false) status: ParcelStatus?
+        @RequestParam(required = false) status: ParcelStatus?,
     ): ResponseEntity<ParcelListResponse> {
         val response = parcelService.getAllParcels(status)
         return ResponseEntity.ok(response)
@@ -39,7 +39,7 @@ class ParcelController(
     @GetMapping("/me")
     fun getMyParcels(
         @AuthenticationPrincipal user: User,
-        @RequestParam(required = false) status: ParcelStatus?
+        @RequestParam(required = false) status: ParcelStatus?,
     ): ResponseEntity<ParcelListResponse> {
         val response = parcelService.getMyParcels(user, status)
         return ResponseEntity.ok(response)
@@ -48,7 +48,7 @@ class ParcelController(
     @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/complete")
     fun completeParcelScan(
-        @RequestBody request: ParcelCompleteRequest
+        @RequestBody request: ParcelCompleteRequest,
     ): ResponseEntity<ParcelResponse> {
         val response = parcelService.completeParcelScan(request)
         return ResponseEntity.ok(response)
@@ -57,7 +57,7 @@ class ParcelController(
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/zone")
     fun getParcelsByZone(
-        @RequestParam(required = false) zone: Zone?
+        @RequestParam(required = false) zone: Zone?,
     ): ResponseEntity<ParcelZoneGroupResponse> {
         val response = parcelService.getParcelsByZone(zone)
         return ResponseEntity.ok(response)
@@ -67,7 +67,7 @@ class ParcelController(
     @PatchMapping("/{parcelId}/zone")
     fun assignZone(
         @PathVariable parcelId: Long,
-        @RequestBody request: ParcelZoneAssignRequest
+        @RequestBody request: ParcelZoneAssignRequest,
     ): ResponseEntity<ParcelZoneAssignResponse> {
         val response = parcelService.assignZone(parcelId, request)
         return ResponseEntity.ok(response)
@@ -76,7 +76,7 @@ class ParcelController(
     @PatchMapping("/claim")
     fun claimParcel(
         @AuthenticationPrincipal user: User,
-        @RequestBody request: ParcelClaimRequest
+        @RequestBody request: ParcelClaimRequest,
     ): ResponseEntity<ParcelClaimResponse> {
         val response = parcelService.claimParcel(user, request)
         return ResponseEntity.ok(response)

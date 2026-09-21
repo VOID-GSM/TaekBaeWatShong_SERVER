@@ -39,12 +39,14 @@ class Parcel(
     var claimedAt: LocalDateTime? = null,
 
     @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
+    val createdAt: LocalDateTime = LocalDateTime.now(),
 ) {
     val unclaimedDays: Int
         get() = if (status == ParcelStatus.ARRIVED && arrivedAt != null) {
             ChronoUnit.DAYS.between(arrivedAt!!.toLocalDate(), LocalDate.now()).toInt()
-        } else 0
+        } else {
+            0
+        }
 
     fun markAsArrived(assignedZone: Zone? = null) {
         if (this.status != ParcelStatus.PENDING) {
