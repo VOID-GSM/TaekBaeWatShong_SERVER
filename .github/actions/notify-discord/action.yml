@@ -1,0 +1,77 @@
+name: Notify Discord
+description: 워크플로 실행 결과를 Discord 웹훅으로 전송합니다.
+
+inputs:
+  webhook:
+    description: Discord 웹훅 URL (없으면 전송을 건너뜁니다)
+    required: false
+  status:
+    description: 실행 결과 (success / failure)
+    required: true
+  kind:
+    description: 알림 종류 표시 (예: CI, CD)
+    required: true
+  stages:
+    description: 단계별 결과 문자열 (선택)
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        DISCORD_WEBHOOK_URL: ${{ inputs.webhook }}
+        JOB_STATUS: ${{ inputs.status }}
+        KIND: ${{ inputs.kind }}
+        STAGES: ${{ inputs.stages }}
+        EVENT_NAME: ${{ github.event_name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        PR_URL: ${{ github.event.pull_request.html_url }}
+        HEAD_REF: ${{ github.head_ref || github.ref_name }}
+        COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        ACTOR: ${{ github.actor }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+          echo "DISCORD_WEBHOOK_URL 시크릿이 없어 알림을 건너뜁니다."
+          exit 0
+        fi
+
+        if [ "$JOB_STATUS" = "success" ]; then
+          TITLE="✅ ${KIND} 성공"
+          COLOR=5763719
+        else
+          TITLE="❌ ${KIND} 실패"
+          COLOR=15548997
+        fi
+
+        if [ "$EVENT_NAME" = "pull_request" ]; then
+          TARGET="[#${PR_NUMBER} ${PR_TITLE}](${PR_URL})"
+        else
+          TARGET="$(printf '%s' "$COMMIT_MESSAGE" | head -n 1)"
+        fi
+        [ -n "$TARGET" ] || TARGET="-"
+
+        FIELDS="$(jq -n \
+          --arg target "$TARGET" \
+          --arg branch "$HEAD_REF" \
+          --arg actor "$ACTOR" \
+          '[
+            { name: "대상", value: $target, inline: false },
+            { name: "브랜치", value: $branch, inline: true },
+            { name: "작성자", value: $actor, inline: true }
+          ]')"
+
+        if [ -n "$STAGES" ]; then
+          FIELDS="$(printf '%s' "$FIELDS" | jq --arg stages "$STAGES" \
+            '. + [{ name: "단계", value: $stages, inline: false }]')"
+        fi
+
+        printf '%s' "$FIELDS" | jq \
+          --arg title "$TITLE" \
+          --argjson color "$COLOR" \
+          --arg url "$RUN_URL" \
+          '{ embeds: [{ title: $title, url: $url, color: $color, fields: . }] }' \
+        | curl -sS -f -X POST -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL" \
+        || echo "::warning::Discord 알림 전송에 실패했습니다."
