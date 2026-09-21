@@ -9,8 +9,12 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import java.time.LocalDateTime
+import java.util.Optional
 
 interface ParcelRepository : JpaRepository<Parcel, Long> {
+
+    @EntityGraph(attributePaths = ["owner"])
+    override fun findById(id: Long): Optional<Parcel>
 
     fun findByInvoiceNumber(invoiceNumber: String): Parcel?
 
