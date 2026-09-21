@@ -20,7 +20,7 @@ private const val MAX_SIZE = 100
 @Service
 @Transactional(readOnly = true)
 class NotificationService(
-    private val notificationRepository: NotificationRepository
+    private val notificationRepository: NotificationRepository,
 ) {
 
     fun getNotifications(user: User, cursor: Long?, size: Int?): NotificationListResponse {
@@ -42,7 +42,7 @@ class NotificationService(
         return NotificationListResponse(
             unreadCount = unreadCount.toInt(),
             notifications = content.map { NotificationResponse.from(it) },
-            nextCursor = nextCursor
+            nextCursor = nextCursor,
         )
     }
 
@@ -62,7 +62,7 @@ class NotificationService(
         return NotificationReadResponse(
             id = notification.id,
             isRead = notification.isRead,
-            unreadCount = unreadCount.toInt()
+            unreadCount = unreadCount.toInt(),
         )
     }
 
@@ -73,7 +73,7 @@ class NotificationService(
         type: NotificationType,
         title: String,
         message: String,
-        unclaimedDays: Int? = null
+        unclaimedDays: Int? = null,
     ): Notification {
         val notification = Notification(
             type = type,
@@ -81,7 +81,7 @@ class NotificationService(
             message = message,
             parcel = parcel,
             recipient = recipient,
-            unclaimedDays = unclaimedDays
+            unclaimedDays = unclaimedDays,
         )
         return notificationRepository.save(notification)
     }

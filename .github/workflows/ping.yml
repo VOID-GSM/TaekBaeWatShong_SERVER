@@ -1,9 +1,0 @@
-name: Ping
-on:
-  pull_request:
-    branches: [develop]
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "pull_request trigger alive"

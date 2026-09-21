@@ -6,15 +6,13 @@ import java.time.LocalDateTime
 data class DeviceTokenResponse(
     val id: Long,
     val platform: String,
-    val createdAt: LocalDateTime
+    val createdAt: LocalDateTime,
 ) {
     companion object {
-        fun from(deviceToken: DeviceToken): DeviceTokenResponse {
-            return DeviceTokenResponse(
-                id = deviceToken.id,
-                platform = deviceToken.platform.name,
-                createdAt = deviceToken.createdAt
-            )
-        }
+        fun from(deviceToken: DeviceToken): DeviceTokenResponse = DeviceTokenResponse(
+            id = deviceToken.id,
+            platform = deviceToken.platform.name,
+            createdAt = deviceToken.createdAt,
+        )
     }
 }

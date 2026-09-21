@@ -11,9 +11,9 @@ import java.time.LocalDateTime
     uniqueConstraints = [
         UniqueConstraint(
             name = "uk_notification_parcel_type_unclaimed_days",
-            columnNames = ["parcel_id", "type", "unclaimedDays"]
-        )
-    ]
+            columnNames = ["parcel_id", "type", "unclaimedDays"],
+        ),
+    ],
 )
 class Notification(
     @Id
@@ -44,7 +44,7 @@ class Notification(
     var isRead: Boolean = false,
 
     @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
+    val createdAt: LocalDateTime = LocalDateTime.now(),
 ) {
     fun markAsRead() {
         this.isRead = true
