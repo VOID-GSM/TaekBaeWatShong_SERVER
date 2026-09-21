@@ -12,19 +12,17 @@ data class ParcelClaimResponse(
     val status: String,
     val claimedAt: LocalDateTime?,
     val unclaimedDays: Int,
-    val message: String = "회수가 완료되었습니다!"
+    val message: String = "회수가 완료되었습니다!",
 ) {
     companion object {
-        fun from(parcel: Parcel): ParcelClaimResponse {
-            return ParcelClaimResponse(
-                id = parcel.id,
-                invoiceNumber = parcel.invoiceNumber,
-                alias = parcel.alias,
-                zone = parcel.zone,
-                status = parcel.status.name,
-                claimedAt = parcel.claimedAt,
-                unclaimedDays = parcel.unclaimedDays
-            )
-        }
+        fun from(parcel: Parcel): ParcelClaimResponse = ParcelClaimResponse(
+            id = parcel.id,
+            invoiceNumber = parcel.invoiceNumber,
+            alias = parcel.alias,
+            zone = parcel.zone,
+            status = parcel.status.name,
+            claimedAt = parcel.claimedAt,
+            unclaimedDays = parcel.unclaimedDays,
+        )
     }
 }

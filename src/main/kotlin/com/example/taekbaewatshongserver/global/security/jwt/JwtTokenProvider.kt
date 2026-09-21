@@ -35,14 +35,13 @@ class JwtTokenProvider(
             .compact()
     }
 
-    fun getClaims(token: String): Claims? =
-        try {
-            Jwts.parser().verifyWith(key).build().parseSignedClaims(token).payload
-        } catch (e: ExpiredJwtException) {
-            null
-        } catch (e: JwtException) {
-            null
-        } catch (e: IllegalArgumentException) {
-            null
-        }
+    fun getClaims(token: String): Claims? = try {
+        Jwts.parser().verifyWith(key).build().parseSignedClaims(token).payload
+    } catch (e: ExpiredJwtException) {
+        null
+    } catch (e: JwtException) {
+        null
+    } catch (e: IllegalArgumentException) {
+        null
+    }
 }

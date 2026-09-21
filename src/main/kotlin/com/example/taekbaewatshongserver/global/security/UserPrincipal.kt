@@ -12,8 +12,7 @@ class UserPrincipal(
 
     override fun getAttributes(): Map<String, Any> = attributes
 
-    override fun getAuthorities(): Collection<GrantedAuthority> =
-        listOf(SimpleGrantedAuthority("ROLE_${user.role}"))
+    override fun getAuthorities(): Collection<GrantedAuthority> = listOf(SimpleGrantedAuthority("ROLE_${user.role}"))
 
     override fun getName(): String = user.id.toString()
 }

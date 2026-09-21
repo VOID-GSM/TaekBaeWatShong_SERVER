@@ -91,6 +91,5 @@ class CustomOAuth2UserService(
         return Role.valueOf(roleName)
     }
 
-    private fun currentSession(): HttpSession =
-        (RequestContextHolder.currentRequestAttributes() as ServletRequestAttributes).request.session
+    private fun currentSession(): HttpSession = (RequestContextHolder.currentRequestAttributes() as ServletRequestAttributes).request.session
 }

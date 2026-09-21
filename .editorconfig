@@ -10,6 +10,8 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 4
 ktlint_code_style = intellij_idea
+# IntelliJ가 import 5개 이상이면 자동으로 *로 합치므로 규칙을 끔
+ktlint_standard_no-wildcard-imports = disabled
 
 [*.{yml,yaml}]
 indent_style = space

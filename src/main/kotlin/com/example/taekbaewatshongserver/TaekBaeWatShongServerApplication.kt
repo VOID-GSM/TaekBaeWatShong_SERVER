@@ -9,5 +9,5 @@ import org.springframework.scheduling.annotation.EnableAsync
 class TaekBaeWatShongServerApplication
 
 fun main(args: Array<String>) {
-	runApplication<TaekBaeWatShongServerApplication>(*args)
+    runApplication<TaekBaeWatShongServerApplication>(*args)
 }

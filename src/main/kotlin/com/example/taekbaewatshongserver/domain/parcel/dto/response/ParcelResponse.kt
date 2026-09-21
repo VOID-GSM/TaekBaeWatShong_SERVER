@@ -16,23 +16,21 @@ data class ParcelResponse(
     val arrivedAt: LocalDateTime? = null,
     val claimedAt: LocalDateTime? = null,
     val unclaimedDays: Int,
-    val createdAt: LocalDateTime
+    val createdAt: LocalDateTime,
 ) {
     companion object {
-        fun from(parcel: Parcel): ParcelResponse {
-            return ParcelResponse(
-                id = parcel.id,
-                deliveryCompany = parcel.deliveryCompany,
-                invoiceNumber = parcel.invoiceNumber,
-                alias = parcel.alias,
-                ownerName = parcel.owner.name,
-                zone = parcel.zone,
-                status = parcel.status,
-                arrivedAt = parcel.arrivedAt,
-                claimedAt = parcel.claimedAt,
-                unclaimedDays = parcel.unclaimedDays,
-                createdAt = parcel.createdAt
-            )
-        }
+        fun from(parcel: Parcel): ParcelResponse = ParcelResponse(
+            id = parcel.id,
+            deliveryCompany = parcel.deliveryCompany,
+            invoiceNumber = parcel.invoiceNumber,
+            alias = parcel.alias,
+            ownerName = parcel.owner.name,
+            zone = parcel.zone,
+            status = parcel.status,
+            arrivedAt = parcel.arrivedAt,
+            claimedAt = parcel.claimedAt,
+            unclaimedDays = parcel.unclaimedDays,
+            createdAt = parcel.createdAt,
+        )
     }
 }

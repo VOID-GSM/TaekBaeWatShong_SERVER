@@ -40,11 +40,9 @@ class EmailAuthService(
         return createLocalUser(email = request.email, password = request.password, name = request.name, role = Role.ADMIN)
     }
 
-    fun login(request: EmailLoginRequest): TokenResponse =
-        authenticate(request.email, request.password, requiredRole = null)
+    fun login(request: EmailLoginRequest): TokenResponse = authenticate(request.email, request.password, requiredRole = null)
 
-    fun adminLogin(request: EmailLoginRequest): TokenResponse =
-        authenticate(request.email, request.password, requiredRole = Role.ADMIN)
+    fun adminLogin(request: EmailLoginRequest): TokenResponse = authenticate(request.email, request.password, requiredRole = Role.ADMIN)
 
     private fun createLocalUser(email: String, password: String, name: String, role: Role): TokenResponse {
         if (userRepository.existsByEmail(email)) {

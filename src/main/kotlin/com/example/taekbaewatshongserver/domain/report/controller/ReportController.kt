@@ -15,13 +15,13 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping("/report")
 class ReportController(
-    private val reportService: ReportService
+    private val reportService: ReportService,
 ) {
 
     @PostMapping
     fun createReport(
         @AuthenticationPrincipal user: User,
-        @RequestBody request: ReportCreateRequest
+        @RequestBody request: ReportCreateRequest,
     ): ResponseEntity<ReportCreateResponse> {
         val response = reportService.createReport(user, request)
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
@@ -29,7 +29,7 @@ class ReportController(
 
     @GetMapping("/me")
     fun getMyReports(
-        @AuthenticationPrincipal user: User
+        @AuthenticationPrincipal user: User,
     ): ResponseEntity<MyReportListResponse> {
         val response = reportService.getMyReports(user)
         return ResponseEntity.ok(response)
@@ -38,7 +38,7 @@ class ReportController(
     @GetMapping("/{reportId}")
     fun getReport(
         @AuthenticationPrincipal user: User,
-        @PathVariable reportId: Long
+        @PathVariable reportId: Long,
     ): ResponseEntity<ReportDetailResponse> {
         val response = reportService.getReport(user, reportId)
         return ResponseEntity.ok(response)
@@ -47,7 +47,7 @@ class ReportController(
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     fun getAllReports(
-        @RequestParam(required = false) progress: ReportProgress?
+        @RequestParam(required = false) progress: ReportProgress?,
     ): ResponseEntity<ReportListResponse> {
         val response = reportService.getAllReports(progress)
         return ResponseEntity.ok(response)
@@ -57,7 +57,7 @@ class ReportController(
     @PatchMapping("/{reportId}/progress")
     fun updateProgress(
         @PathVariable reportId: Long,
-        @RequestBody request: ReportProgressUpdateRequest
+        @RequestBody request: ReportProgressUpdateRequest,
     ): ResponseEntity<ReportProgressResponse> {
         val response = reportService.updateProgress(reportId, request)
         return ResponseEntity.ok(response)
