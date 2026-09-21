@@ -43,3 +43,7 @@ out/
 .env
 .env.*
 !.env.example
+
+### Claude harness workspace ###
+_workspace/
+_workspace_*/
