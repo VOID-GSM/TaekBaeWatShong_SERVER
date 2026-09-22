@@ -154,8 +154,10 @@ jobs:
               buildenv: []
             context:
               git:
-                url: git@github.com:${{ github.repository }}.git
-                ref: ${{ github.ref }}
+                # 공개 저장소이므로 HTTPS로 받는다. SSH를 쓰면 디플로이 키가 필요한데
+                # 조직 설정(deploy_keys_enabled_for_repositories=false)으로 등록이 막혀 있다.
+                url: ${{ github.server_url }}/${{ github.repository }}.git
+                branch: ${{ github.ref_name }}
 
       - name: Notify Discord
         if: ${{ !cancelled() }}
