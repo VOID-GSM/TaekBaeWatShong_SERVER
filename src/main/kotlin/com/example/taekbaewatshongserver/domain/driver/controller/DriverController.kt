@@ -18,7 +18,7 @@ class DriverController(
     private val driverService: DriverService
 ) {
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('TEACHER')")
     @PostMapping
     fun createQr(
         @RequestBody request: DriverQrCreateRequest
