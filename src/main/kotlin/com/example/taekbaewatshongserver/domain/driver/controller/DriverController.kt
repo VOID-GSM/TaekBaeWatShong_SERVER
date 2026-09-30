@@ -27,7 +27,7 @@ class DriverController(
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
 
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/scan")
     fun scan(
         @AuthenticationPrincipal user: User,
