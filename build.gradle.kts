@@ -29,6 +29,8 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")
+    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.google.zxing:javase:3.5.3")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
     runtimeOnly("com.mysql:mysql-connector-j")
@@ -52,4 +54,19 @@ allOpen {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// .env 파일을 읽어 실행 시 환경변수로 주입 (bootRun, IDE 실행 공통)
+tasks.withType<JavaExec> {
+    val envFile = rootProject.file(".env")
+    if (envFile.exists()) {
+        envFile.readLines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("#") && it.contains("=") }
+            .forEach {
+                val key = it.substringBefore("=").trim()
+                val value = it.substringAfter("=").trim().removeSurrounding("\"").removeSurrounding("'")
+                environment(key, value)
+            }
+    }
 }
