@@ -9,18 +9,16 @@ data class DriverQrCreateResponse(
     val deliveryCompany: String,
     val qrToken: String,
     val qrImageUrl: String,
-    val createdAt: LocalDateTime
+    val createdAt: LocalDateTime,
 ) {
     companion object {
-        fun from(driver: Driver, qrImageUrl: String): DriverQrCreateResponse {
-            return DriverQrCreateResponse(
-                id = driver.id,
-                driverName = driver.driverName,
-                deliveryCompany = driver.deliveryCompany,
-                qrToken = driver.qrToken,
-                qrImageUrl = qrImageUrl,
-                createdAt = driver.createdAt
-            )
-        }
+        fun from(driver: Driver, qrImageUrl: String): DriverQrCreateResponse = DriverQrCreateResponse(
+            id = driver.id,
+            driverName = driver.driverName,
+            deliveryCompany = driver.deliveryCompany,
+            qrToken = driver.qrToken,
+            qrImageUrl = qrImageUrl,
+            createdAt = driver.createdAt,
+        )
     }
 }

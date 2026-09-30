@@ -23,7 +23,7 @@ import java.util.UUID
 @Transactional(readOnly = true)
 class DriverService(
     private val driverRepository: DriverRepository,
-    private val driverScanLogRepository: DriverScanLogRepository
+    private val driverScanLogRepository: DriverScanLogRepository,
 ) {
 
     @Transactional
@@ -32,8 +32,8 @@ class DriverService(
             Driver(
                 driverName = request.driverName,
                 deliveryCompany = request.deliveryCompany,
-                qrToken = UUID.randomUUID().toString()
-            )
+                qrToken = UUID.randomUUID().toString(),
+            ),
         )
 
         return DriverQrCreateResponse.from(driver, generateQrImageDataUrl(driver.qrToken))

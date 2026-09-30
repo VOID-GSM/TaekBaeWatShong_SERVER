@@ -20,5 +20,5 @@ class DriverScanLog(
     val scannedBy: User,
 
     @Column(nullable = false, updatable = false)
-    val scannedAt: LocalDateTime = LocalDateTime.now()
+    val scannedAt: LocalDateTime = LocalDateTime.now(),
 )

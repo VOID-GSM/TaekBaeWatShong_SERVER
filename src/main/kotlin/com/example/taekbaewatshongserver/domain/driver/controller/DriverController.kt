@@ -15,13 +15,13 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping("/qr")
 class DriverController(
-    private val driverService: DriverService
+    private val driverService: DriverService,
 ) {
 
     @PreAuthorize("hasRole('TEACHER')")
     @PostMapping
     fun createQr(
-        @RequestBody request: DriverQrCreateRequest
+        @RequestBody request: DriverQrCreateRequest,
     ): ResponseEntity<DriverQrCreateResponse> {
         val response = driverService.createQr(request)
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
@@ -31,7 +31,7 @@ class DriverController(
     @PostMapping("/scan")
     fun scan(
         @AuthenticationPrincipal user: User,
-        @RequestBody request: DriverQrScanRequest
+        @RequestBody request: DriverQrScanRequest,
     ): ResponseEntity<DriverQrScanResponse> {
         val response = driverService.scan(user, request)
         return ResponseEntity.ok(response)
