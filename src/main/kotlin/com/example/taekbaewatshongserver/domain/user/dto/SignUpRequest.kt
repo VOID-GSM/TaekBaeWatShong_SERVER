@@ -7,4 +7,5 @@ data class SignUpRequest(
     val password: String,
     val name: String,
     val role: Role,
+    val studentNumber: String? = null,
 )

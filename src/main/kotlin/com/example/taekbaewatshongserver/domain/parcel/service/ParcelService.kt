@@ -20,7 +20,7 @@ import java.time.LocalDateTime
 class ParcelService(
     private val parcelRepository: ParcelRepository,
     private val apickTrackingService: ApickTrackingService,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
 
     @Transactional
@@ -39,11 +39,12 @@ class ParcelService(
             deliveryCompany = request.deliveryCompany,
             invoiceNumber = request.invoiceNumber,
             alias = alias,
-            owner = user
+            owner = user,
         )
 
         return try {
             val savedParcel = parcelRepository.save(parcel)
+            eventPublisher.publishEvent(ParcelRegisteredEvent(savedParcel.id))
             ParcelResponse.from(savedParcel)
         } catch (e: DataIntegrityViolationException) {
             throw ParcelException.Conflict("이미 등록된 운송장 번호입니다.")
@@ -75,7 +76,7 @@ class ParcelService(
             ParcelStatus.CLAIMED -> parcelRepository.findAllByOwnerAndStatusAndClaimedAtGreaterThanEqualOrderByCreatedAtDesc(
                 owner = user,
                 status = ParcelStatus.CLAIMED,
-                claimedAt = threeDaysAgo
+                claimedAt = threeDaysAgo,
             )
             else -> {
                 val userParcels = parcelRepository.findAllByOwnerOrderByCreatedAtDesc(user)
@@ -97,7 +98,7 @@ class ParcelService(
 
         parcel.markAsArrived(request.zone)
 
-        eventPublisher.publishEvent(ParcelArrivedEvent(parcel))
+        eventPublisher.publishEvent(ParcelArrivedEvent(parcel.id))
 
         return ParcelResponse.from(parcel)
     }
@@ -124,9 +125,9 @@ class ParcelService(
                         alias = parcel.alias,
                         ownerName = parcel.owner.name,
                         arrivedAt = parcel.arrivedAt,
-                        unclaimedDays = parcel.unclaimedDays
+                        unclaimedDays = parcel.unclaimedDays,
                     )
-                }
+                },
             )
         }
 
@@ -139,6 +140,10 @@ class ParcelService(
             .orElseThrow { ParcelException.NotFound("존재하지 않는 택배 ID입니다.") }
 
         parcel.updateZone(request.zone)
+
+        if (parcel.status == ParcelStatus.ARRIVED) {
+            eventPublisher.publishEvent(ParcelZoneAssignedEvent(parcel.id))
+        }
 
         return ParcelZoneAssignResponse.from(parcel)
     }
@@ -153,6 +158,8 @@ class ParcelService(
         }
 
         parcel.markAsClaimed()
+
+        eventPublisher.publishEvent(ParcelClaimedEvent(parcel.id))
 
         return ParcelClaimResponse.from(parcel)
     }

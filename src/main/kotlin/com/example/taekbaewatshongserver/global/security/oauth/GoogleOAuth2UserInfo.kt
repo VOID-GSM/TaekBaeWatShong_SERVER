@@ -15,10 +15,9 @@ class GoogleOAuth2UserInfo(
     override val email: String
         get() = requiredAttribute("email")
 
-    private fun requiredAttribute(key: String): String =
-        attributes[key]?.toString()
-            ?: throw OAuth2AuthenticationException(
-                OAuth2Error("missing_attribute"),
-                "구글 계정에서 '$key' 정보를 가져오지 못했습니다",
-            )
+    private fun requiredAttribute(key: String): String = attributes[key]?.toString()
+        ?: throw OAuth2AuthenticationException(
+            OAuth2Error("missing_attribute"),
+            "구글 계정에서 '$key' 정보를 가져오지 못했습니다",
+        )
 }

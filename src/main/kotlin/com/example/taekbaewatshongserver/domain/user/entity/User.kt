@@ -30,4 +30,6 @@ class User(
 
     @Enumerated(EnumType.STRING)
     var role: Role,
+
+    var studentNumber: String? = null,
 )

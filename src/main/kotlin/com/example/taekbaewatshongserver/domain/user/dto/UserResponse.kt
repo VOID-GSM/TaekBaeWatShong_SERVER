@@ -9,12 +9,11 @@ data class UserResponse(
     val role: String,
 ) {
     companion object {
-        fun from(user: User): UserResponse =
-            UserResponse(
-                id = user.id,
-                email = user.email,
-                name = user.name,
-                role = user.role.name,
-            )
+        fun from(user: User): UserResponse = UserResponse(
+            id = user.id,
+            email = user.email,
+            name = user.name,
+            role = user.role.name,
+        )
     }
 }

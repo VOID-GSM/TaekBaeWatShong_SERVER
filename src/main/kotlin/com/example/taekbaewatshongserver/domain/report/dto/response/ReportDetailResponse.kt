@@ -14,20 +14,18 @@ data class ReportDetailResponse(
     val content: String,
     val progress: ReportProgress,
     val chatRoomId: Long? = null,
-    val createdAt: LocalDateTime
+    val createdAt: LocalDateTime,
 ) {
     companion object {
-        fun from(report: Report): ReportDetailResponse {
-            return ReportDetailResponse(
-                id = report.id,
-                reporterName = report.reporter.name,
-                alias = report.parcel.alias,
-                invoiceNumber = report.parcel.invoiceNumber,
-                lostEstimatedAt = report.lostEstimatedAt,
-                content = report.content,
-                progress = report.progress,
-                createdAt = report.createdAt
-            )
-        }
+        fun from(report: Report): ReportDetailResponse = ReportDetailResponse(
+            id = report.id,
+            reporterName = report.reporter.name,
+            alias = report.parcel.alias,
+            invoiceNumber = report.parcel.invoiceNumber,
+            lostEstimatedAt = report.lostEstimatedAt,
+            content = report.content,
+            progress = report.progress,
+            createdAt = report.createdAt,
+        )
     }
 }

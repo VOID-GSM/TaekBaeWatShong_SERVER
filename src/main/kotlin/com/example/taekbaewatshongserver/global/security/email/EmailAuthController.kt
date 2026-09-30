@@ -4,6 +4,7 @@ import com.example.taekbaewatshongserver.domain.user.dto.AdminSignUpRequest
 import com.example.taekbaewatshongserver.domain.user.dto.EmailLoginRequest
 import com.example.taekbaewatshongserver.domain.user.dto.SignUpRequest
 import com.example.taekbaewatshongserver.domain.user.dto.TokenResponse
+import com.example.taekbaewatshongserver.domain.user.entity.Role
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
 
 private val EMAIL_REGEX = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
+private val STUDENT_NUMBER_REGEX = Regex("^\\d{4}$")
 
 @RestController
 @RequestMapping("/auth/email")
@@ -25,6 +27,9 @@ class EmailAuthController(
         validatePassword(request.password)
         if (request.name.isBlank()) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "name은 비어있을 수 없습니다")
+        }
+        if (request.role == Role.STUDENT && !STUDENT_NUMBER_REGEX.matches(request.studentNumber ?: "")) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "학번은 4자리 숫자여야 합니다")
         }
         return emailAuthService.signUp(request)
     }

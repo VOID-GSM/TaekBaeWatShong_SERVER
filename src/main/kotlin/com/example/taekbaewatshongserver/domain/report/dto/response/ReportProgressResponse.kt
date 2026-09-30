@@ -7,15 +7,13 @@ import java.time.LocalDateTime
 data class ReportProgressResponse(
     val id: Long,
     val progress: ReportProgress,
-    val updatedAt: LocalDateTime
+    val updatedAt: LocalDateTime,
 ) {
     companion object {
-        fun from(report: Report): ReportProgressResponse {
-            return ReportProgressResponse(
-                id = report.id,
-                progress = report.progress,
-                updatedAt = report.updatedAt
-            )
-        }
+        fun from(report: Report): ReportProgressResponse = ReportProgressResponse(
+            id = report.id,
+            progress = report.progress,
+            updatedAt = report.updatedAt,
+        )
     }
 }

@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(readOnly = true)
 class ReportService(
     private val reportRepository: ReportRepository,
-    private val parcelRepository: ParcelRepository
+    private val parcelRepository: ParcelRepository,
 ) {
 
     @Transactional
@@ -39,7 +39,7 @@ class ReportService(
             parcel = parcel,
             reporter = user,
             lostEstimatedAt = request.lostEstimatedAt,
-            content = request.content
+            content = request.content,
         )
 
         return try {
