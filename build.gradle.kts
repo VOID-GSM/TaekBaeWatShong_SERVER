@@ -64,8 +64,14 @@ tasks.withType<JavaExec> {
             .map { it.trim() }
             .filter { it.isNotEmpty() && !it.startsWith("#") && it.contains("=") }
             .forEach {
-                val key = it.substringBefore("=").trim()
-                val value = it.substringAfter("=").trim().removeSurrounding("\"").removeSurrounding("'")
+                val line = it.removePrefix("export ").trim()
+                val key = line.substringBefore("=").trim()
+                val rawValue = line.substringAfter("=").trim()
+                val value = when {
+                    rawValue.startsWith("\"") -> rawValue.removePrefix("\"").substringBefore("\"")
+                    rawValue.startsWith("'") -> rawValue.removePrefix("'").substringBefore("'")
+                    else -> rawValue.substringBefore("#").trim()
+                }
                 environment(key, value)
             }
     }
