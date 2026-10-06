@@ -6,6 +6,7 @@ import com.example.taekbaewatshongserver.domain.driver.dto.response.DriverQrCrea
 import com.example.taekbaewatshongserver.domain.driver.dto.response.DriverQrScanResponse
 import com.example.taekbaewatshongserver.domain.driver.service.DriverService
 import com.example.taekbaewatshongserver.domain.user.entity.User
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -21,7 +22,7 @@ class DriverController(
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     fun createQr(
-        @RequestBody request: DriverQrCreateRequest,
+        @Valid @RequestBody request: DriverQrCreateRequest,
     ): ResponseEntity<DriverQrCreateResponse> {
         val response = driverService.createQr(request)
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
@@ -31,7 +32,7 @@ class DriverController(
     @PostMapping("/scan")
     fun scan(
         @AuthenticationPrincipal user: User,
-        @RequestBody request: DriverQrScanRequest,
+        @Valid @RequestBody request: DriverQrScanRequest,
     ): ResponseEntity<DriverQrScanResponse> {
         val response = driverService.scan(user, request)
         return ResponseEntity.ok(response)
