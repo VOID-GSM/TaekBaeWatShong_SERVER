@@ -107,14 +107,34 @@ class ChatPolicyTest {
     }
 
     @Test
-    fun `채팅 상대 후보 역할은 본인 역할에 따라 달라진다`() {
+    fun `채팅 상대 조회 조건은 본인 역할과 로그인 수단에 따라 달라진다`() {
         assertEquals(
-            setOf(Role.STUDENT, Role.TEACHER),
-            ChatPolicy.candidateRoles(user(Role.ADMIN, AuthProvider.LOCAL)),
+            ChatPartnerCondition(roles = setOf(Role.STUDENT, Role.TEACHER)),
+            ChatPolicy.partnerCondition(user(Role.ADMIN, AuthProvider.LOCAL)),
         )
         assertEquals(
-            setOf(Role.STUDENT, Role.TEACHER, Role.ADMIN),
-            ChatPolicy.candidateRoles(user(Role.STUDENT)),
+            ChatPartnerCondition(roles = setOf(Role.ADMIN), dataGsmOnlyRole = Role.TEACHER),
+            ChatPolicy.partnerCondition(user(Role.STUDENT)),
         )
+        assertEquals(
+            ChatPartnerCondition(roles = setOf(Role.ADMIN)),
+            ChatPolicy.partnerCondition(user(Role.TEACHER, AuthProvider.GOOGLE)),
+        )
+    }
+
+    @Test
+    fun `채팅 상대 조회 조건은 isAllowed와 같은 결과를 낸다`() {
+        val users = Role.entries.flatMap { role -> AuthProvider.entries.map { provider -> user(role, provider) } }
+
+        for (viewer in users) {
+            val condition = ChatPolicy.partnerCondition(viewer)
+            for (candidate in users.filter { it.id != viewer.id }) {
+                assertEquals(
+                    ChatPolicy.isAllowed(viewer, candidate),
+                    condition.matches(candidate),
+                    "${viewer.role}/${viewer.provider} -> ${candidate.role}/${candidate.provider}",
+                )
+            }
+        }
     }
 }

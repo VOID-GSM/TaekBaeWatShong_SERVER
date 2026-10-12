@@ -20,8 +20,11 @@ class ChatController(
     @GetMapping("/partners")
     fun getPartners(
         @AuthenticationPrincipal user: User,
+        @RequestParam(required = false) keyword: String?,
+        @RequestParam(required = false) page: Int?,
+        @RequestParam(required = false) size: Int?,
     ): ResponseEntity<ChatPartnerListResponse> {
-        val response = chatService.getPartners(user)
+        val response = chatService.getPartners(user, keyword, page, size)
         return ResponseEntity.ok(response)
     }
 

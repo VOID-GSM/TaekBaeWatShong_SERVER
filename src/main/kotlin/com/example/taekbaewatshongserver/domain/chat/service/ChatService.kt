@@ -28,12 +28,22 @@ class ChatService(
     private val chatRoomCreator: ChatRoomCreator,
 ) {
 
-    fun getPartners(user: User): ChatPartnerListResponse {
-        val partners = userRepository.findAllByRoleIn(ChatPolicy.candidateRoles(user))
-            .filter { it.id != user.id && ChatPolicy.isAllowed(user, it) }
-            .map { ChatPartnerResponse.from(it) }
+    fun getPartners(user: User, keyword: String?, page: Int?, size: Int?): ChatPartnerListResponse {
+        val condition = ChatPolicy.partnerCondition(user)
+        val pageable = PageRequest.of((page ?: 0).coerceAtLeast(0), (size ?: DEFAULT_SIZE).coerceIn(1, MAX_SIZE))
 
-        return ChatPartnerListResponse(partners)
+        val partners = userRepository.findChatPartners(
+            userId = requireNotNull(user.id),
+            roles = condition.roles,
+            dataGsmOnlyRole = condition.dataGsmOnlyRole,
+            pattern = "%${keyword?.trim().orEmpty()}%",
+            pageable = pageable,
+        )
+
+        return ChatPartnerListResponse(
+            partners = partners.content.map { ChatPartnerResponse.from(it) },
+            hasNext = partners.hasNext(),
+        )
     }
 
     // 동시 생성 경합에서 진 경우, 상대 트랜잭션이 커밋한 방을 재조회로 볼 수 있어야 하므로 READ_COMMITTED를 쓴다.

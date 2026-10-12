@@ -40,10 +40,17 @@ object ChatPolicy {
         false
     }
 
-    fun candidateRoles(user: User): Set<Role> = when (user.role) {
-        Role.ADMIN -> CLIENT_ROLES
-        else -> CLIENT_ROLES + Role.ADMIN
+    /** [isAllowed]와 같은 규칙을 채팅 상대 조회 쿼리 조건으로 표현한다. */
+    fun partnerCondition(user: User): ChatPartnerCondition = when (user.role) {
+        Role.ADMIN -> ChatPartnerCondition(roles = CLIENT_ROLES)
+        Role.STUDENT -> clientPartnerCondition(user, Role.TEACHER)
+        Role.TEACHER -> clientPartnerCondition(user, Role.STUDENT)
     }
+
+    private fun clientPartnerCondition(user: User, counterpartRole: Role): ChatPartnerCondition = ChatPartnerCondition(
+        roles = setOf(Role.ADMIN),
+        dataGsmOnlyRole = counterpartRole.takeIf { user.provider == AuthProvider.DATAGSM },
+    )
 
     private fun resolveClientRoomType(user: User, partner: User): ChatRoomType {
         if (user.provider != AuthProvider.DATAGSM || partner.provider != AuthProvider.DATAGSM) {
