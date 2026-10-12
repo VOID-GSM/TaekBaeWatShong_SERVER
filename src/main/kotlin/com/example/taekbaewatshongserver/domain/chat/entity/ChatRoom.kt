@@ -48,13 +48,10 @@ class ChatRoom(
         else -> throw ChatException.NotParticipant()
     }
 
-    fun updateLastMessage(message: ChatMessage) {
-        this.lastMessage = message.content.take(MAX_PREVIEW_LENGTH)
-        this.lastMessageAt = message.createdAt
-    }
-
     companion object {
         private const val MAX_PREVIEW_LENGTH = 200
+
+        fun previewOf(content: String): String = content.take(MAX_PREVIEW_LENGTH)
 
         fun of(type: ChatRoomType, user: User, partner: User): ChatRoom {
             val (low, high) = orderPair(user, partner)

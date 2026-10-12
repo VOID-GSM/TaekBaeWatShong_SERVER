@@ -130,7 +130,7 @@ class ChatService(
                 content = request.content.trim(),
             ),
         )
-        room.updateLastMessage(message)
+        chatRoomRepository.updateLastMessageIfNewer(room.id, ChatRoom.previewOf(message.content), message.createdAt)
 
         return ChatMessageResponse.of(message, user)
     }
