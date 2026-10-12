@@ -13,6 +13,7 @@ import com.example.taekbaewatshongserver.global.exception.ChatException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Isolation
 import org.springframework.transaction.annotation.Transactional
 
 private const val DEFAULT_SIZE = 30
@@ -24,6 +25,7 @@ class ChatService(
     private val chatRoomRepository: ChatRoomRepository,
     private val chatMessageRepository: ChatMessageRepository,
     private val userRepository: UserRepository,
+    private val chatRoomCreator: ChatRoomCreator,
 ) {
 
     fun getPartners(user: User): ChatPartnerListResponse {
@@ -34,7 +36,8 @@ class ChatService(
         return ChatPartnerListResponse(partners)
     }
 
-    @Transactional
+    // 동시 생성 경합에서 진 경우, 상대 트랜잭션이 커밋한 방을 재조회로 볼 수 있어야 하므로 READ_COMMITTED를 쓴다.
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     fun createOrGetRoom(user: User, request: ChatRoomCreateRequest): ChatRoomCreateResult {
         val partner = userRepository.findById(request.partnerId)
             .orElseThrow { ChatException.PartnerNotFound() }
@@ -46,17 +49,18 @@ class ChatService(
             return ChatRoomCreateResult(ChatRoomResponse.of(it, user, unreadCountOf(it, user)), created = false)
         }
 
-        return try {
-            val savedRoom = chatRoomRepository.save(ChatRoom.of(type, user, partner))
-            ChatRoomCreateResult(ChatRoomResponse.of(savedRoom, user), created = true)
+        val savedRoom = try {
+            chatRoomCreator.create(type, user, partner)
         } catch (e: DataIntegrityViolationException) {
             val existingRoom = chatRoomRepository.findByParticipantLowAndParticipantHigh(low, high)
                 ?: throw e
-            ChatRoomCreateResult(
+            return ChatRoomCreateResult(
                 ChatRoomResponse.of(existingRoom, user, unreadCountOf(existingRoom, user)),
                 created = false,
             )
         }
+
+        return ChatRoomCreateResult(ChatRoomResponse.of(savedRoom, user), created = true)
     }
 
     fun getMyRooms(user: User): ChatRoomListResponse {
