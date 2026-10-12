@@ -33,7 +33,12 @@ object ChatPolicy {
         }
     }
 
-    fun isAllowed(user: User, partner: User): Boolean = runCatching { resolveRoomType(user, partner) }.isSuccess
+    fun isAllowed(user: User, partner: User): Boolean = try {
+        resolveRoomType(user, partner)
+        true
+    } catch (e: ChatException) {
+        false
+    }
 
     fun candidateRoles(user: User): Set<Role> = when (user.role) {
         Role.ADMIN -> CLIENT_ROLES
