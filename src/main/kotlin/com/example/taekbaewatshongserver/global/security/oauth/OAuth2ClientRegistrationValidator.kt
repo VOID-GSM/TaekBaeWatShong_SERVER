@@ -25,6 +25,8 @@ class OAuth2ClientRegistrationValidator(
         }
     }
 
-    private fun problemOf(registrationId: String, key: String, value: String?): String? =
-        if (value.isNullOrBlank() || value.contains("\${")) "$registrationId.$key=$value" else null
+    private fun problemOf(registrationId: String, key: String, value: String?): String? {
+        val missing = value.isNullOrBlank() || value.contains("\${")
+        return if (missing) "$registrationId.$key=$value" else null
+    }
 }
