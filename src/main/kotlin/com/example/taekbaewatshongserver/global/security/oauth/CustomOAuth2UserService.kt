@@ -1,0 +1,144 @@
+package com.example.taekbaewatshongserver.global.security.oauth
+
+import com.example.taekbaewatshongserver.domain.user.entity.AuthProvider
+import com.example.taekbaewatshongserver.domain.user.entity.Role
+import com.example.taekbaewatshongserver.domain.user.entity.User
+import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
+import com.example.taekbaewatshongserver.global.security.UserPrincipal
+import jakarta.servlet.http.HttpSession
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException
+import org.springframework.security.oauth2.core.OAuth2Error
+import org.springframework.security.oauth2.core.user.OAuth2User
+import org.springframework.stereotype.Service
+import org.springframework.web.context.request.RequestContextHolder
+import org.springframework.web.context.request.ServletRequestAttributes
+
+@Service
+class CustomOAuth2UserService(
+    private val userRepository: UserRepository,
+    @Value("#{'\${app.admin.emails:}'.split(',')}") adminEmails: List<String>,
+) : DefaultOAuth2UserService() {
+
+    private val adminEmails: Set<String> = adminEmails.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
+
+    override fun loadUser(userRequest: OAuth2UserRequest): OAuth2User {
+        val oAuth2User = super.loadUser(userRequest)
+        val registrationId = userRequest.clientRegistration.registrationId
+        val userInfo = when (registrationId) {
+            AuthController.PROVIDER_DATAGSM -> DataGsmOAuth2UserInfo(oAuth2User.attributes)
+            else -> GoogleOAuth2UserInfo(oAuth2User.attributes)
+        }
+        val provider = when (registrationId) {
+            AuthController.PROVIDER_DATAGSM -> AuthProvider.DATAGSM
+            else -> AuthProvider.GOOGLE
+        }
+        requireActiveAccount(userInfo)
+
+        val isAdminEmail = userInfo.email.lowercase() in adminEmails
+        val session = currentSession()
+
+        val loginType = session.getAttribute(AuthController.LOGIN_TYPE_SESSION_KEY) as String?
+            ?: throw OAuth2AuthenticationException(
+                OAuth2Error("login_type_required"),
+                "/auth/login?role=STUDENT|TEACHER 또는 /auth/admin/login 으로 로그인해주세요",
+            )
+
+        val existing = userRepository.findByEmail(userInfo.email)
+
+        val user = when (AuthController.LoginType.valueOf(loginType)) {
+            AuthController.LoginType.ADMIN -> {
+                if (!isAdminEmail) {
+                    throw OAuth2AuthenticationException(OAuth2Error("not_admin"), "관리자 계정이 아닙니다")
+                }
+                if (existing != null) {
+                    applyUserInfo(existing, userInfo)
+                    existing.role = Role.ADMIN
+                    userRepository.save(existing)
+                } else {
+                    userRepository.save(
+                        User(
+                            email = userInfo.email,
+                            name = userInfo.name,
+                            provider = provider,
+                            providerId = userInfo.id,
+                            role = Role.ADMIN,
+                        ),
+                    )
+                }
+            }
+            AuthController.LoginType.CLIENT -> {
+                if (existing != null) {
+                    applyUserInfo(existing, userInfo)
+                    userRepository.save(existing)
+                } else {
+                    userRepository.save(
+                        User(
+                            email = userInfo.email,
+                            name = userInfo.name,
+                            provider = provider,
+                            providerId = userInfo.id,
+                            role = resolveSignupRole(session, userInfo),
+                            studentNumber = (userInfo as? DataGsmOAuth2UserInfo)?.studentNumber,
+                        ),
+                    )
+                }
+            }
+        }
+
+        session.removeAttribute(AuthController.LOGIN_TYPE_SESSION_KEY)
+        return UserPrincipal(user, oAuth2User.attributes)
+    }
+
+    private fun resolveSignupRole(session: HttpSession, userInfo: OAuth2UserInfo): Role {
+        val requestedRoleName = session.getAttribute(AuthController.SIGNUP_ROLE_SESSION_KEY) as String?
+        session.removeAttribute(AuthController.SIGNUP_ROLE_SESSION_KEY)
+
+        if (userInfo is DataGsmOAuth2UserInfo) {
+            val resolvedRole = when (userInfo.objectType) {
+                "STUDENT" -> Role.STUDENT
+                "TEACHER" -> Role.TEACHER
+                else -> throw OAuth2AuthenticationException(
+                    OAuth2Error("unsupported_object_type"),
+                    "DataGSM 계정 유형(${userInfo.objectType})을 지원하지 않습니다",
+                )
+            }
+            if (requestedRoleName != null && requestedRoleName != resolvedRole.name) {
+                throw OAuth2AuthenticationException(
+                    OAuth2Error("role_mismatch"),
+                    "요청한 role($requestedRoleName)과 DataGSM 계정 유형(${userInfo.objectType})이 일치하지 않습니다",
+                )
+            }
+            return resolvedRole
+        }
+
+        val roleName = requestedRoleName
+            ?: throw OAuth2AuthenticationException(
+                OAuth2Error("role_required"),
+                "회원가입을 위해 /auth/login?role=STUDENT 또는 /auth/login?role=TEACHER 로 로그인해주세요",
+            )
+        return Role.valueOf(roleName)
+    }
+
+    private fun applyUserInfo(user: User, userInfo: OAuth2UserInfo) {
+        if (userInfo !is DataGsmOAuth2UserInfo || userInfo.hasKnownName) {
+            user.name = userInfo.name
+        }
+        if (userInfo is DataGsmOAuth2UserInfo) {
+            user.studentNumber = userInfo.studentNumber
+        }
+    }
+
+    internal fun requireActiveAccount(userInfo: OAuth2UserInfo) {
+        if (userInfo is DataGsmOAuth2UserInfo && userInfo.status != "ACTIVE") {
+            throw OAuth2AuthenticationException(
+                OAuth2Error("inactive_account"),
+                "DataGSM 계정 상태(${userInfo.status})로는 로그인할 수 없습니다",
+            )
+        }
+    }
+
+    private fun currentSession(): HttpSession = (RequestContextHolder.currentRequestAttributes() as ServletRequestAttributes).request.session
+}
