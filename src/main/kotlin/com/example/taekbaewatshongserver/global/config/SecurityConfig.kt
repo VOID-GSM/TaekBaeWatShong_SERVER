@@ -53,6 +53,9 @@ class SecurityConfig(
                     "/oauth2/**",
                     "/login/**",
                     "/error",
+                    "/swagger-ui.html",
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**",
                 ).permitAll()
                 it.anyRequest().authenticated()
             }
