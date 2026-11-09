@@ -2,15 +2,24 @@ package com.example.taekbaewatshongserver.domain.report.dto.response
 
 import com.example.taekbaewatshongserver.domain.report.entity.Report
 import com.example.taekbaewatshongserver.domain.report.entity.ReportProgress
+import io.swagger.v3.oas.annotations.media.Schema
 import java.time.LocalDateTime
 
+@Schema(description = "접수된 분실 신고")
 data class ReportCreateResponse(
+    @field:Schema(description = "분실 신고 ID", example = "1")
     val id: Long,
+    @field:Schema(description = "운송장 번호", example = "123456789012")
     val invoiceNumber: String,
+    @field:Schema(description = "택배 별칭", example = "운동화")
     val alias: String,
+    @field:Schema(description = "분실 추정 시각", example = "2026-11-08T18:00:00")
     val lostEstimatedAt: LocalDateTime,
+    @field:Schema(description = "분실 상황 설명", example = "보관함에 택배가 없습니다.")
     val content: String,
+    @field:Schema(description = "진행 상태 (접수 직후에는 RECEIVED)", example = "RECEIVED")
     val progress: ReportProgress,
+    @field:Schema(description = "접수 시각", example = "2026-11-09T14:30:00")
     val createdAt: LocalDateTime,
 ) {
     companion object {
