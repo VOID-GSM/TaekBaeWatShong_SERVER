@@ -59,3 +59,10 @@ notification:
   unclaimed-reminder:
     cron: ${UNCLAIMED_REMINDER_CRON:0 0 8 * * *}
     days: ${UNCLAIMED_REMINDER_DAYS:1,3,5}
+
+springdoc:
+  default-produces-media-type: application/json
+  swagger-ui:
+    path: /swagger-ui.html
+    persist-authorization: true
+    display-request-duration: true
