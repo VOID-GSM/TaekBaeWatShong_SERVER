@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 /**
  * STOMP 인바운드 프레임 인증·인가.
  *
- * - CONNECT: `Authorization: Bearer <JWT>` 헤더를 검증해 세션 사용자를 정한다.
+ * - CONNECT/STOMP: `Authorization: Bearer <JWT>` 헤더를 검증해 세션 사용자를 정한다.
  * - SUBSCRIBE: 본인 전용 큐([CHAT_QUEUE])만 허용한다.
  * - SEND: 허용하지 않는다. `/user/{id}/...`로 보내 다른 사용자에게 가짜 이벤트를 넣는 것을 막기 위함이다.
  */
@@ -29,7 +29,7 @@ class StompAuthChannelInterceptor(
             ?: return message
 
         when (accessor.command) {
-            StompCommand.CONNECT -> accessor.user = authenticate(accessor)
+            StompCommand.CONNECT, StompCommand.STOMP -> accessor.user = authenticate(accessor)
             StompCommand.SUBSCRIBE -> {
                 if (accessor.user == null || accessor.destination != CHAT_QUEUE) {
                     throw MessageDeliveryException("구독할 수 없는 경로입니다.")

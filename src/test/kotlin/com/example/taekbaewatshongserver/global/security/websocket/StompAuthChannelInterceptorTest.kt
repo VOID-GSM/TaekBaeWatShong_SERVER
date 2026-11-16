@@ -49,6 +49,24 @@ class StompAuthChannelInterceptorTest {
     }
 
     @Test
+    fun `토큰 없이 STOMP 프레임으로 연결하면 거부된다`() {
+        assertFailsWith<MessageDeliveryException> {
+            interceptor.preSend(frame(StompCommand.STOMP), channel)
+        }
+    }
+
+    @Test
+    fun `유효한 토큰으로 STOMP 프레임 연결하면 사용자 ID가 세션 사용자로 설정된다`() {
+        `when`(userRepository.existsById(7L)).thenReturn(true)
+        val token = jwtTokenProvider.createToken(7L, "user@gsm.hs.kr")
+
+        val result = interceptor.preSend(frame(StompCommand.STOMP) { addNativeHeader("Authorization", "Bearer $token") }, channel)
+
+        val accessor = MessageHeaderAccessor.getAccessor(result, StompHeaderAccessor::class.java)!!
+        assertEquals("7", accessor.user?.name)
+    }
+
+    @Test
     fun `잘못된 토큰으로 CONNECT하면 거부된다`() {
         assertFailsWith<MessageDeliveryException> {
             interceptor.preSend(frame(StompCommand.CONNECT) { addNativeHeader("Authorization", "Bearer invalid") }, channel)
