@@ -33,6 +33,8 @@ class WebSocketConfig(
             .setHeartbeatValue(longArrayOf(HEARTBEAT_MS, HEARTBEAT_MS))
             .setTaskScheduler(heartbeatScheduler())
         registry.setUserDestinationPrefix("/user")
+        // 같은 세션으로 나가는 MESSAGE·READ 이벤트가 발행 순서대로 전달되도록 한다.
+        registry.setPreservePublishOrder(true)
     }
 
     override fun configureClientInboundChannel(registration: ChannelRegistration) {
