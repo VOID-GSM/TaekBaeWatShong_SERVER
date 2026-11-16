@@ -143,7 +143,7 @@ class ChatService(
         val room = findParticipatingRoom(user, roomId)
         val readCount = chatMessageRepository.markAllAsReadBy(room, user)
         if (readCount > 0) {
-            eventPublisher.publishEvent(ChatMessagesReadEvent(roomId, requireNotNull(user.id), readCount))
+            eventPublisher.publishEvent(ChatMessagesReadEvent(roomId, requireNotNull(user.id)))
         }
 
         return ChatMessageReadResponse(roomId = roomId, readCount = readCount, unreadCount = 0)

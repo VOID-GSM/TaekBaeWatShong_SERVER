@@ -7,5 +7,4 @@ data class ChatMessageSentEvent(
 data class ChatMessagesReadEvent(
     val roomId: Long,
     val readerId: Long,
-    val readCount: Int,
 )
