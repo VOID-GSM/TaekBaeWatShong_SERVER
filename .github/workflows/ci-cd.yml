@@ -119,7 +119,11 @@ jobs:
   # ⑤ 배포 (develop / main 푸시 + CI 통과 시에만) — GSMSV 서버에 SSH로 배포
   #   develop → development 환경 서버, main → production 환경 서버
   #   GitHub에는 SSH 비밀번호(Environment 시크릿 SSH_PASSWORD)만 두고,
-  #   앱 환경변수(DB·JWT·OAuth·CORS 등)는 서버의 .env 파일을 그대로 읽는다.
+  #   앱은 systemd 사용자 유닛(taekbaewatshong.service)으로 실행한다.
+  #   - 환경변수: 서버의 .env를 systemd EnvironmentFile로 읽음 (셸 파싱 없음)
+  #   - 재부팅 시 자동 기동, 비정상 종료 시 재시작
+  #   - 기동 실패 시 직전 jar로 자동 롤백
+  #   서버 1회 준비: sudo loginctl enable-linger ubuntu
   deploy:
     name: Deploy to GSMSV (${{ github.ref_name }})
     needs: build
@@ -135,12 +139,15 @@ jobs:
       SSH_HOST: ssh.gsmsv.site
       SSH_USER: ubuntu
       SSH_PORT: ${{ github.ref_name == 'main' && '21132' || '24179' }}
-      # jar·로그·pid를 두는 디렉터리
+      # jar·로그를 두는 디렉터리
       APP_DIR: /home/ubuntu/taekbaewatshong
-      # 서버에서 직접 관리하는 앱 환경변수 파일
+      # 서버에서 직접 관리하는 앱 환경변수 파일. 앱의 작업 디렉터리도 이 파일이 있는 곳(기존 수동 배포와 동일)으로 둔다.
       ENV_FILE: /home/ubuntu/TaekBaeWatShong_SERVER/.env
-      # 기존 수동 배포와 같은 포트
+      # 기존 수동 배포와 같은 포트.
+      # 참고: GSMSV 문서상 외부로 바로 열리는 VM 포트는 80(HTTP)·10000(SVC)뿐이다.
+      #       8080을 외부에 노출하는 경로(프록시·포워딩 등)를 바꾸면 이 값도 함께 맞춘다.
       APP_PORT: '8080'
+      SERVICE: taekbaewatshong
 
     steps:
       - name: Checkout
@@ -174,81 +181,129 @@ jobs:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           {
-            printf 'export APP_DIR=%q ENV_FILE=%q APP_PORT=%q\n' "$APP_DIR" "$ENV_FILE" "$APP_PORT"
+            printf 'readonly APP_DIR=%q ENV_FILE=%q APP_PORT=%q SERVICE=%q\n' "$APP_DIR" "$ENV_FILE" "$APP_PORT" "$SERVICE"
             cat <<'REMOTE'
           set -euo pipefail
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
           cd "$APP_DIR"
 
-          if ! command -v java >/dev/null 2>&1; then
-            echo "::error::서버에 java가 설치되어 있지 않습니다 (Java 21 필요)"
-            exit 1
-          fi
-          if [ ! -f "$ENV_FILE" ]; then
-            echo "::error::환경변수 파일이 없습니다: $ENV_FILE"
-            exit 1
-          fi
+          fail() { echo "::error::$*"; exit 1; }
 
-          # .env 로드 — 값을 셸로 해석하지 않고 KEY=VALUE 그대로 export 한다 (빈 줄·주석 무시, 양끝 따옴표 제거)
-          while IFS= read -r line || [ -n "$line" ]; do
-            line="${line%$'\r'}"
-            case "$line" in ''|'#'*) continue ;; esac
-            key="${line%%=*}"
-            value="${line#*=}"
-            key="$(printf '%s' "$key" | sed 's/^export[[:space:]]*//; s/[[:space:]]*$//')"
-            case "$value" in \"*\") value="${value#\"}"; value="${value%\"}" ;; \'*\') value="${value#\'}"; value="${value%\'}" ;; esac
-            export "$key=$value"
-          done < "$ENV_FILE"
-          export SERVER_PORT="$APP_PORT"
+          JAVA_BIN="$(command -v java)" || fail "서버에 java가 설치되어 있지 않습니다 (Java 21 필요)"
+          [ -f "$ENV_FILE" ] || fail "환경변수 파일이 없습니다: $ENV_FILE"
+          [ "$(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null || true)" = "yes" ] \
+            || fail "systemd linger가 꺼져 있습니다. 서버에서 1회 실행: sudo loginctl enable-linger $(id -un)"
 
-          # 기존 프로세스 종료 — 이 워크플로가 띄운 jar와 수동으로 띄운 jar 모두
-          PIDS="$(pgrep -u "$(id -u)" -f "java .*-jar .*(TaekBaeWatShong-server.*\\.jar|$APP_DIR/app\\.jar)" | tr '\n' ' ' || true)"
-          for pid in $PIDS; do kill "$pid" 2>/dev/null || true; done
-          for _ in $(seq 1 30); do
-            alive=""
-            for pid in $PIDS; do kill -0 "$pid" 2>/dev/null && alive="$alive $pid"; done
-            [ -z "$alive" ] && break
-            sleep 1
-          done
-          for pid in $PIDS; do kill -9 "$pid" 2>/dev/null || true; done
+          # systemd 사용자 유닛 작성 (매 배포마다 덮어써서 워크플로와 항상 일치시킴)
+          UNIT_DIR="$HOME/.config/systemd/user"
+          mkdir -p "$UNIT_DIR"
+          cat > "$UNIT_DIR/$SERVICE.service" <<UNIT
+          [Unit]
+          Description=TaekBaeWatShong server
+          After=network-online.target
 
-          # 포트가 비워질 때까지 대기
-          #   파이프(grep -q) 없이 ss 필터 결과만 보므로 pipefail + SIGPIPE 경합이 없다
-          port_busy() { command -v ss >/dev/null 2>&1 && [ -n "$(ss -Hltn "sport = :$APP_PORT")" ]; }
-          for _ in $(seq 1 15); do
-            port_busy || break
-            sleep 1
-          done
-          if port_busy; then
-            echo "::error::$APP_PORT 포트를 다른 프로세스가 사용 중입니다 (아래 점유 프로세스 확인)"
-            ss -Hltnp "sport = :$APP_PORT" || true
-            for pid in $(ss -Hltnp "sport = :$APP_PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u); do
-              ps -o pid,user,cmd -p "$pid" || true
+          [Service]
+          WorkingDirectory=$(dirname "$ENV_FILE")
+          Environment=SERVER_PORT=$APP_PORT
+          EnvironmentFile=$ENV_FILE
+          ExecStart=$JAVA_BIN -jar $APP_DIR/app.jar
+          Restart=on-failure
+          RestartSec=5
+          SuccessExitStatus=143
+          StandardOutput=append:$APP_DIR/app.log
+          StandardError=inherit
+
+          [Install]
+          WantedBy=default.target
+          UNIT
+          systemctl --user daemon-reload
+          systemctl --user enable "$SERVICE" >/dev/null
+
+          # 기동 확인: 로그의 Started 라인 + HTTP 응답(상태 코드 무관, 연결만 확인)
+          wait_started() {
+            local limit="$1"
+            for _ in $(seq 1 "$limit"); do
+              if systemctl --user is-failed --quiet "$SERVICE" \
+                || [ "$(systemctl --user show -p NRestarts --value "$SERVICE")" != "0" ]; then
+                return 1
+              fi
+              if grep -q "Started .* in .* seconds" app.log 2>/dev/null \
+                && [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$APP_PORT/" || true)" != "000" ]; then
+                return 0
+              fi
+              sleep 1
             done
+            return 1
+          }
+
+          start_service() {
+            if [ -f app.log ]; then mv -f app.log app.log.prev; fi
+            systemctl --user reset-failed "$SERVICE" 2>/dev/null || true
+            systemctl --user start "$SERVICE"
+          }
+
+          # 1) 현재 서비스 중지
+          systemctl --user stop "$SERVICE" 2>/dev/null || true
+
+          # 2) systemd 밖에서 수동으로 띄운 인스턴스가 있으면 종료 (최초 전환 1회용)
+          #    종료 전에 그 jar 경로를 기억해 두었다가, 새 버전이 실패하면 그 jar로 롤백한다.
+          MANUAL_JAR=""
+          MANUAL_PIDS="$(pgrep -u "$(id -u)" -f 'java .*-jar .*TaekBaeWatShong-server.*\.jar' | tr '\n' ' ' || true)"
+          if [ -n "$MANUAL_PIDS" ]; then
+            for pid in $MANUAL_PIDS; do
+              jar="$(tr '\0' '\n' < "/proc/$pid/cmdline" 2>/dev/null | grep '\.jar$' | head -n 1 || true)"
+              case "$jar" in /*) ;; ?*) jar="$(readlink "/proc/$pid/cwd")/$jar" ;; esac
+              if [ -n "$jar" ] && [ -f "$jar" ]; then MANUAL_JAR="$jar"; fi
+            done
+            echo "수동 실행 인스턴스 종료: $MANUAL_PIDS (jar: ${MANUAL_JAR:-알 수 없음})"
+            kill $MANUAL_PIDS 2>/dev/null || true
+            for _ in $(seq 1 30); do
+              alive=""; for pid in $MANUAL_PIDS; do kill -0 "$pid" 2>/dev/null && alive=1; done
+              [ -z "$alive" ] && break; sleep 1
+            done
+            kill -9 $MANUAL_PIDS 2>/dev/null || true
+          fi
+
+          # 3) 포트 비었는지 확인 (파이프 없이 ss 필터 결과만 확인)
+          port_busy() { [ -n "$(ss -Hltn "sport = :$APP_PORT" 2>/dev/null)" ]; }
+          for _ in $(seq 1 15); do port_busy || break; sleep 1; done
+          if port_busy; then
+            echo "::error::$APP_PORT 포트를 다른 프로세스가 사용 중입니다"
+            ss -Hltnp "sport = :$APP_PORT" || true
             exit 1
           fi
 
+          # 4) 직전 jar 보관 후 교체·기동
+          HAS_PREV=""
+          if [ -n "$MANUAL_JAR" ]; then cp -f "$MANUAL_JAR" app.jar.prev; HAS_PREV=1
+          elif [ -f app.jar ]; then cp -f app.jar app.jar.prev; HAS_PREV=1; fi
           mv -f release/app.jar app.jar
-          if [ -f app.log ]; then mv -f app.log app.log.prev; fi
+          start_service
 
-          nohup java -jar "$APP_DIR/app.jar" > app.log 2>&1 < /dev/null &
-          echo $! > app.pid
-          NEW_PID=$(cat app.pid)
+          if wait_started 120; then
+            echo "애플리케이션 기동 완료 (포트 $APP_PORT, $(systemctl --user show -p MainPID --value "$SERVICE"))"
+            exit 0
+          fi
 
-          # 기동 확인 (최대 120초)
-          for _ in $(seq 1 120); do
-            if ! kill -0 "$NEW_PID" 2>/dev/null; then
-              echo "::error::애플리케이션이 기동 중 종료되었습니다"
-              tail -n 80 app.log
-              exit 1
+          echo "::error::새 버전 기동 실패 — 로그 마지막 80줄"
+          tail -n 80 app.log || true
+          cp -f app.log app.log.failed 2>/dev/null || true
+
+          # 5) 롤백
+          systemctl --user stop "$SERVICE" || true
+          if [ -n "$HAS_PREV" ]; then
+            echo "직전 버전(app.jar.prev)으로 롤백합니다"
+            cp -f app.jar.prev app.jar
+            start_service
+            if wait_started 120; then
+              echo "::warning::롤백 완료 — 직전 버전으로 서비스 중 (실패 로그: $APP_DIR/app.log.failed)"
+            else
+              echo "::error::롤백 버전도 기동 실패"
+              tail -n 40 app.log || true
             fi
-            if grep -q "Started .* in .* seconds" app.log; then
-              echo "애플리케이션 기동 완료 (PID $NEW_PID, 포트 $APP_PORT)"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "::error::120초 안에 기동 로그를 확인하지 못했습니다"
-          tail -n 80 app.log
+          else
+            echo "::error::롤백할 직전 jar가 없습니다 (최초 배포). 서버에서 수동 확인이 필요합니다"
+          fi
           exit 1
           REMOTE
           } | sshpass -e ssh -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" 'bash -s'
