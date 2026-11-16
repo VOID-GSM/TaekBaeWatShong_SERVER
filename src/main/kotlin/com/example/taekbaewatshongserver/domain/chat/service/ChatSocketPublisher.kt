@@ -83,7 +83,11 @@ class ChatSocketPublisher(
             val payload = delivery.payload
             log.error(
                 "[채팅 실시간 전달 실패] recipientId: {}, type: {}, roomId: {}, messageId: {}",
-                delivery.recipientId, payload.type, payload.roomId, payload.message?.id, e,
+                delivery.recipientId,
+                payload.type,
+                payload.roomId,
+                payload.message?.id,
+                e,
             )
         }
     }
