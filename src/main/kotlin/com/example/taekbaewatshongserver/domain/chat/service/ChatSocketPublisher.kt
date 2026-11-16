@@ -29,34 +29,51 @@ class ChatSocketPublisher(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /** 안 읽은 수는 받는 쪽(보낸 사람의 상대)만 바뀌므로 그쪽만 계산하고, 보낸 사람에게는 null로 보낸다. */
     fun publishMessageSent(room: ChatRoom, message: ChatMessage) {
-        room.participants().forEach { recipient ->
-            publish(
-                recipient,
-                ChatSocketEvent(
-                    type = ChatSocketEventType.MESSAGE,
-                    roomId = room.id,
-                    message = ChatMessageResponse.of(message, recipient),
-                    unreadCount = unreadCountOf(room, recipient),
-                    totalUnreadCount = totalUnreadCountOf(recipient),
-                ),
-            )
-        }
+        val sender = message.sender
+        val receiver = room.partnerOf(sender)
+
+        publish(
+            sender,
+            ChatSocketEvent(
+                type = ChatSocketEventType.MESSAGE,
+                roomId = room.id,
+                message = ChatMessageResponse.of(message, sender),
+            ),
+        )
+        publish(
+            receiver,
+            ChatSocketEvent(
+                type = ChatSocketEventType.MESSAGE,
+                roomId = room.id,
+                message = ChatMessageResponse.of(message, receiver),
+                unreadCount = unreadCountOf(room, receiver),
+                totalUnreadCount = totalUnreadCountOf(receiver),
+            ),
+        )
     }
 
+    /** 안 읽은 수는 읽은 사람만 바뀌므로(이 방은 0) 그쪽만 계산하고, 상대에게는 null로 보낸다. */
     fun publishMessagesRead(room: ChatRoom, reader: User) {
-        room.participants().forEach { recipient ->
-            publish(
-                recipient,
-                ChatSocketEvent(
-                    type = ChatSocketEventType.READ,
-                    roomId = room.id,
-                    readerId = reader.id,
-                    unreadCount = unreadCountOf(room, recipient),
-                    totalUnreadCount = totalUnreadCountOf(recipient),
-                ),
-            )
-        }
+        publish(
+            reader,
+            ChatSocketEvent(
+                type = ChatSocketEventType.READ,
+                roomId = room.id,
+                readerId = reader.id,
+                unreadCount = 0,
+                totalUnreadCount = totalUnreadCountOf(reader),
+            ),
+        )
+        publish(
+            room.partnerOf(reader),
+            ChatSocketEvent(
+                type = ChatSocketEventType.READ,
+                roomId = room.id,
+                readerId = reader.id,
+            ),
+        )
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -67,8 +84,6 @@ class ChatSocketPublisher(
             log.error("[채팅 실시간 전달 실패] recipientId: {}, payload: {}", delivery.recipientId, delivery.payload, e)
         }
     }
-
-    private fun ChatRoom.participants(): List<User> = listOf(participantLow, participantHigh)
 
     private fun publish(recipient: User, payload: ChatSocketEvent) {
         eventPublisher.publishEvent(ChatSocketDelivery(requireNotNull(recipient.id), payload))

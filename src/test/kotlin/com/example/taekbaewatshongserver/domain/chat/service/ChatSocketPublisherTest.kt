@@ -13,10 +13,15 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito.doThrow
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.never
+import org.mockito.Mockito.times
+import org.mockito.Mockito.verify
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.messaging.MessagingException
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class ChatSocketPublisherTest {
 
@@ -45,6 +50,10 @@ class ChatSocketPublisherTest {
         assertEquals(setOf(1L, 2L), byRecipient.keys)
         assertEquals(true, byRecipient.getValue(1L).payload.message?.isMine)
         assertEquals(false, byRecipient.getValue(2L).payload.message?.isMine)
+        assertNull(byRecipient.getValue(1L).payload.unreadCount)
+        assertNull(byRecipient.getValue(1L).payload.totalUnreadCount)
+        assertNotNull(byRecipient.getValue(2L).payload.unreadCount)
+        assertNotNull(byRecipient.getValue(2L).payload.totalUnreadCount)
         deliveries().forEach {
             assertEquals(ChatSocketEventType.MESSAGE, it.payload.type)
             assertEquals(5L, it.payload.roomId)
@@ -60,6 +69,22 @@ class ChatSocketPublisherTest {
             assertEquals(ChatSocketEventType.READ, it.payload.type)
             assertEquals(2L, it.payload.readerId)
         }
+        val byRecipient = deliveries().associateBy { it.recipientId }
+        assertEquals(0, byRecipient.getValue(2L).payload.unreadCount)
+        assertNotNull(byRecipient.getValue(2L).payload.totalUnreadCount)
+        assertNull(byRecipient.getValue(1L).payload.unreadCount)
+        assertNull(byRecipient.getValue(1L).payload.totalUnreadCount)
+    }
+
+    @Test
+    fun `안 읽은 수는 바뀌는 사람 것만 조회한다`() {
+        publisher.publishMessageSent(room, ChatMessage(id = 10L, room = room, sender = driver, content = "안녕하세요"))
+        publisher.publishMessagesRead(room, student)
+
+        verify(chatMessageRepository, times(1)).countByRoomAndSenderNotAndIsReadFalse(room, student)
+        verify(chatMessageRepository, never()).countByRoomAndSenderNotAndIsReadFalse(room, driver)
+        verify(chatMessageRepository, times(2)).countAllUnreadFor(2L)
+        verify(chatMessageRepository, never()).countAllUnreadFor(1L)
     }
 
     @Test

@@ -53,6 +53,9 @@ client.activate();
 ```
 
 - 모든 값은 **이벤트를 받는 사람 기준**이다 (`isMine`, `unreadCount`, `totalUnreadCount`).
+- `unreadCount`·`totalUnreadCount`가 `null`이면 이 이벤트로 내 안 읽은 수가 바뀌지 않은 것이다. 기존 값을 그대로 둔다.
+  - `MESSAGE`: 받는 사람에게만 값이 있고, 보낸 사람에게는 `null`
+  - `READ`: 읽은 사람에게만 값이 있고(이 방은 `0`), 상대에게는 `null`
 - `MESSAGE`: 메시지가 저장되면 두 참여자 모두에게 간다. 보낸 사람도 받으므로 다른 탭·기기의 화면을 맞출 수 있다.
 - `READ`: `PATCH /chat/rooms/{roomId}/read`로 한 건 이상 읽음 처리되면 두 참여자 모두에게 간다.
   `readerId`가 내가 아니면, 그 방에서 내가 보낸 메시지를 모두 읽음으로 표시한다.

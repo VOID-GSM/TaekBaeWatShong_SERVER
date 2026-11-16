@@ -12,10 +12,10 @@ data class ChatSocketEvent(
     val message: ChatMessageResponse? = null,
     @field:Schema(description = "메시지를 읽은 사람의 사용자 ID (READ일 때만)", example = "2")
     val readerId: Long? = null,
-    @field:Schema(description = "이벤트를 받는 사람 기준 이 방의 안 읽은 메시지 수", example = "1")
-    val unreadCount: Int,
-    @field:Schema(description = "이벤트를 받는 사람 기준 모든 방의 안 읽은 메시지 수 합계", example = "3")
-    val totalUnreadCount: Int,
+    @field:Schema(description = "이벤트를 받는 사람 기준 이 방의 안 읽은 메시지 수. 이 이벤트로 바뀌지 않았으면 null", example = "1")
+    val unreadCount: Int? = null,
+    @field:Schema(description = "이벤트를 받는 사람 기준 모든 방의 안 읽은 메시지 수 합계. 이 이벤트로 바뀌지 않았으면 null", example = "3")
+    val totalUnreadCount: Int? = null,
 )
 
 enum class ChatSocketEventType {
