@@ -1,0 +1,58 @@
+package com.example.taekbaewatshongserver.global.config
+
+import com.example.taekbaewatshongserver.global.security.websocket.StompAuthChannelInterceptor
+import com.example.taekbaewatshongserver.global.security.websocket.StompSessionExpiry
+import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Lazy
+import org.springframework.messaging.simp.config.ChannelRegistration
+import org.springframework.messaging.simp.config.MessageBrokerRegistry
+import org.springframework.scheduling.TaskScheduler
+import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker
+import org.springframework.web.socket.config.annotation.StompEndpointRegistry
+import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration
+
+/**
+ * 실시간 채팅용 STOMP 설정.
+ *
+ * 클라이언트는 `/ws-chat`에 연결하고 CONNECT 프레임의 `Authorization` 헤더로 JWT를 보낸 뒤
+ * 본인 전용 큐(`/user/queue/chat`)를 구독한다. 메시지 전송은 REST API로만 한다.
+ */
+@Configuration
+@EnableWebSocketMessageBroker
+class WebSocketConfig(
+    private val stompAuthChannelInterceptor: StompAuthChannelInterceptor,
+    private val stompSessionExpiry: StompSessionExpiry,
+    private val corsAllowedOrigins: CorsAllowedOrigins,
+    // 브로커 설정이 이 클래스를 참조하므로, 순환 참조를 피하려고 @Lazy로 주입한다.
+    @Lazy @Qualifier("messageBrokerTaskScheduler") private val messageBrokerTaskScheduler: TaskScheduler,
+) : WebSocketMessageBrokerConfigurer {
+
+    override fun registerStompEndpoints(registry: StompEndpointRegistry) {
+        registry.addEndpoint(ENDPOINT)
+            .setAllowedOriginPatterns(*corsAllowedOrigins.values.toTypedArray())
+    }
+
+    override fun configureMessageBroker(registry: MessageBrokerRegistry) {
+        registry.enableSimpleBroker("/queue")
+            .setHeartbeatValue(longArrayOf(HEARTBEAT_MS, HEARTBEAT_MS))
+            .setTaskScheduler(messageBrokerTaskScheduler)
+        registry.setUserDestinationPrefix("/user")
+        // 같은 세션으로 나가는 MESSAGE·READ 이벤트가 발행 순서대로 전달되도록 한다.
+        registry.setPreservePublishOrder(true)
+    }
+
+    override fun configureWebSocketTransport(registration: WebSocketTransportRegistration) {
+        registration.addDecoratorFactory(stompSessionExpiry)
+    }
+
+    override fun configureClientInboundChannel(registration: ChannelRegistration) {
+        registration.interceptors(stompAuthChannelInterceptor)
+    }
+
+    companion object {
+        const val ENDPOINT = "/ws-chat"
+        private const val HEARTBEAT_MS = 10_000L
+    }
+}
