@@ -1,11 +1,13 @@
 package com.example.taekbaewatshongserver.global.config
 
 import com.example.taekbaewatshongserver.global.security.websocket.StompAuthChannelInterceptor
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Lazy
 import org.springframework.messaging.simp.config.ChannelRegistration
 import org.springframework.messaging.simp.config.MessageBrokerRegistry
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
+import org.springframework.scheduling.TaskScheduler
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer
@@ -21,6 +23,8 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 class WebSocketConfig(
     private val stompAuthChannelInterceptor: StompAuthChannelInterceptor,
     @Value("#{'\${app.cors.allowed-origins}'.split(',')}") private val allowedOrigins: List<String>,
+    // 브로커 설정이 이 클래스를 참조하므로, 순환 참조를 피하려고 @Lazy로 주입한다.
+    @Lazy @Qualifier("messageBrokerTaskScheduler") private val messageBrokerTaskScheduler: TaskScheduler,
 ) : WebSocketMessageBrokerConfigurer {
 
     override fun registerStompEndpoints(registry: StompEndpointRegistry) {
@@ -31,7 +35,7 @@ class WebSocketConfig(
     override fun configureMessageBroker(registry: MessageBrokerRegistry) {
         registry.enableSimpleBroker("/queue")
             .setHeartbeatValue(longArrayOf(HEARTBEAT_MS, HEARTBEAT_MS))
-            .setTaskScheduler(heartbeatScheduler())
+            .setTaskScheduler(messageBrokerTaskScheduler)
         registry.setUserDestinationPrefix("/user")
         // 같은 세션으로 나가는 MESSAGE·READ 이벤트가 발행 순서대로 전달되도록 한다.
         registry.setPreservePublishOrder(true)
@@ -39,12 +43,6 @@ class WebSocketConfig(
 
     override fun configureClientInboundChannel(registration: ChannelRegistration) {
         registration.interceptors(stompAuthChannelInterceptor)
-    }
-
-    private fun heartbeatScheduler(): ThreadPoolTaskScheduler = ThreadPoolTaskScheduler().apply {
-        poolSize = 1
-        setThreadNamePrefix("ws-heartbeat-")
-        initialize()
     }
 
     companion object {
