@@ -3,6 +3,7 @@ package com.example.taekbaewatshongserver.global.config
 import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.security.jwt.JwtTokenProvider
 import com.example.taekbaewatshongserver.global.security.websocket.StompAuthChannelInterceptor
+import com.example.taekbaewatshongserver.global.security.websocket.StompSessionExpiry
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.SpringBootConfiguration
@@ -47,6 +48,7 @@ class TaskExecutionConfigTest {
         CorsAllowedOrigins::class,
         TaskExecutionConfig::class,
         StompAuthChannelInterceptor::class,
+        StompSessionExpiry::class,
         JwtTokenProvider::class,
     )
     class TestApplication {

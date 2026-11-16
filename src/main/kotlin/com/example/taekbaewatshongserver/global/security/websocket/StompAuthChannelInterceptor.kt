@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 /**
  * STOMP 인바운드 프레임 인증·인가.
  *
- * - CONNECT/STOMP: `Authorization: Bearer <JWT>` 헤더를 검증해 세션 사용자를 정한다.
+ * - CONNECT/STOMP: `Authorization: Bearer <JWT>` 헤더를 검증해 세션 사용자를 정하고, 토큰 만료 시각에 세션이 닫히도록 예약한다.
  * - SUBSCRIBE: 본인 전용 큐([CHAT_QUEUE])만 허용한다.
  * - SEND: 허용하지 않는다. `/user/{id}/...`로 보내 다른 사용자에게 가짜 이벤트를 넣는 것을 막기 위함이다.
  */
@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component
 class StompAuthChannelInterceptor(
     private val jwtTokenProvider: JwtTokenProvider,
     private val userRepository: UserRepository,
+    private val stompSessionExpiry: StompSessionExpiry,
 ) : ChannelInterceptor {
 
     override fun preSend(message: Message<*>, channel: MessageChannel): Message<*> {
@@ -45,13 +46,18 @@ class StompAuthChannelInterceptor(
     private fun authenticate(accessor: StompHeaderAccessor): StompUserPrincipal {
         val bearer = accessor.getFirstNativeHeader("Authorization")
         val token = bearer?.takeIf { it.startsWith("Bearer ") }?.substring(7)
-        val userId = token?.let { jwtTokenProvider.getClaims(it) }?.subject?.toLongOrNull()
-            ?: throw MessageDeliveryException("유효한 인증 토큰이 필요합니다.")
+        val claims = token?.let { jwtTokenProvider.getClaims(it) }
+        val userId = claims?.subject?.toLongOrNull()
+        val expiresAt = claims?.expiration?.toInstant()
+        if (userId == null || expiresAt == null) {
+            throw MessageDeliveryException("유효한 인증 토큰이 필요합니다.")
+        }
 
         if (!userRepository.existsById(userId)) {
             throw MessageDeliveryException("유효한 인증 토큰이 필요합니다.")
         }
 
+        stompSessionExpiry.closeAt(requireNotNull(accessor.sessionId), expiresAt)
         return StompUserPrincipal(userId)
     }
 

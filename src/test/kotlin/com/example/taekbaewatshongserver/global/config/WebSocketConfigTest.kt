@@ -5,7 +5,10 @@ import com.example.taekbaewatshongserver.domain.chat.dto.response.ChatSocketEven
 import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.security.jwt.JwtTokenProvider
 import com.example.taekbaewatshongserver.global.security.websocket.StompAuthChannelInterceptor
+import com.example.taekbaewatshongserver.global.security.websocket.StompSessionExpiry
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.security.Keys
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
@@ -22,6 +25,7 @@ import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.annotation.Import
 import org.springframework.messaging.converter.MappingJackson2MessageConverter
 import org.springframework.messaging.simp.SimpMessagingTemplate
+import org.springframework.messaging.simp.stomp.ConnectionLostException
 import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.messaging.simp.stomp.StompSession
@@ -30,18 +34,24 @@ import org.springframework.web.socket.WebSocketHttpHeaders
 import org.springframework.web.socket.client.standard.StandardWebSocketClient
 import org.springframework.web.socket.messaging.WebSocketStompClient
 import java.lang.reflect.Type
+import java.util.Date
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
+
+private const val JWT_SECRET = "test-secret-key-that-is-at-least-32-bytes!!"
 
 @SpringBootTest(
     classes = [WebSocketConfigTest.TestApplication::class],
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = [
         "app.cors.allowed-origins=http://localhost:3000",
-        "jwt.secret=test-secret-key-that-is-at-least-32-bytes!!",
+        "jwt.secret=$JWT_SECRET",
         "jwt.access-token-validity-ms=60000",
     ],
 )
@@ -59,6 +69,7 @@ class WebSocketConfigTest {
         WebSocketConfig::class,
         CorsAllowedOrigins::class,
         StompAuthChannelInterceptor::class,
+        StompSessionExpiry::class,
         JwtTokenProvider::class,
     )
     class TestApplication
@@ -78,7 +89,7 @@ class WebSocketConfigTest {
     @Autowired
     private lateinit var objectMapper: ObjectMapper
 
-    private fun connect(token: String?): StompSession {
+    private fun connect(token: String?, handler: StompSessionHandlerAdapter = object : StompSessionHandlerAdapter() {}): StompSession {
         val client = WebSocketStompClient(StandardWebSocketClient()).apply {
             messageConverter = MappingJackson2MessageConverter().apply { objectMapper = this@WebSocketConfigTest.objectMapper }
         }
@@ -89,7 +100,7 @@ class WebSocketConfigTest {
             "ws://localhost:$port${WebSocketConfig.ENDPOINT}",
             handshakeHeaders,
             connectHeaders,
-            object : StompSessionHandlerAdapter() {},
+            handler,
         ).get(5, TimeUnit.SECONDS)
     }
 
@@ -123,6 +134,30 @@ class WebSocketConfigTest {
 
         assertEquals(event, received.get(5, TimeUnit.SECONDS))
         session.disconnect()
+    }
+
+    @Test
+    fun `토큰이 만료되면 서버가 세션을 닫는다`() {
+        `when`(userRepository.existsById(7L)).thenReturn(true)
+        val shortLivedToken = Jwts.builder()
+            .subject("7")
+            .expiration(Date(System.currentTimeMillis() + 2_000))
+            .signWith(Keys.hmacShaKeyFor(JWT_SECRET.toByteArray()))
+            .compact()
+
+        val closed = CompletableFuture<Throwable>()
+        val session = connect(
+            shortLivedToken,
+            object : StompSessionHandlerAdapter() {
+                override fun handleTransportError(session: StompSession, exception: Throwable) {
+                    closed.complete(exception)
+                }
+            },
+        )
+
+        assertTrue(session.isConnected)
+        assertIs<ConnectionLostException>(closed.get(8, TimeUnit.SECONDS))
+        assertFalse(session.isConnected)
     }
 
     @Test

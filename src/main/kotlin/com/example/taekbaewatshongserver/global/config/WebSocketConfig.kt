@@ -1,6 +1,7 @@
 package com.example.taekbaewatshongserver.global.config
 
 import com.example.taekbaewatshongserver.global.security.websocket.StompAuthChannelInterceptor
+import com.example.taekbaewatshongserver.global.security.websocket.StompSessionExpiry
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Lazy
@@ -10,6 +11,7 @@ import org.springframework.scheduling.TaskScheduler
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration
 
 /**
  * 실시간 채팅용 STOMP 설정.
@@ -21,6 +23,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 class WebSocketConfig(
     private val stompAuthChannelInterceptor: StompAuthChannelInterceptor,
+    private val stompSessionExpiry: StompSessionExpiry,
     private val corsAllowedOrigins: CorsAllowedOrigins,
     // 브로커 설정이 이 클래스를 참조하므로, 순환 참조를 피하려고 @Lazy로 주입한다.
     @Lazy @Qualifier("messageBrokerTaskScheduler") private val messageBrokerTaskScheduler: TaskScheduler,
@@ -38,6 +41,10 @@ class WebSocketConfig(
         registry.setUserDestinationPrefix("/user")
         // 같은 세션으로 나가는 MESSAGE·READ 이벤트가 발행 순서대로 전달되도록 한다.
         registry.setPreservePublishOrder(true)
+    }
+
+    override fun configureWebSocketTransport(registration: WebSocketTransportRegistration) {
+        registration.addDecoratorFactory(stompSessionExpiry)
     }
 
     override fun configureClientInboundChannel(registration: ChannelRegistration) {

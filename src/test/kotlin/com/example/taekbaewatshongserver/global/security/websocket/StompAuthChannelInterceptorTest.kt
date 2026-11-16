@@ -4,6 +4,7 @@ import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.security.jwt.JwtTokenProvider
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.springframework.messaging.Message
 import org.springframework.messaging.MessageChannel
@@ -19,11 +20,13 @@ class StompAuthChannelInterceptorTest {
 
     private val jwtTokenProvider = JwtTokenProvider("test-secret-key-that-is-at-least-32-bytes!!", 60_000L)
     private val userRepository: UserRepository = mock(UserRepository::class.java)
-    private val interceptor = StompAuthChannelInterceptor(jwtTokenProvider, userRepository)
+    private val stompSessionExpiry: StompSessionExpiry = mock(StompSessionExpiry::class.java)
+    private val interceptor = StompAuthChannelInterceptor(jwtTokenProvider, userRepository, stompSessionExpiry)
     private val channel: MessageChannel = mock(MessageChannel::class.java)
 
     private fun frame(command: StompCommand, configure: StompHeaderAccessor.() -> Unit = {}): Message<ByteArray> {
         val accessor = StompHeaderAccessor.create(command).apply {
+            sessionId = SESSION_ID
             configure()
             setLeaveMutable(true)
         }
@@ -39,6 +42,17 @@ class StompAuthChannelInterceptorTest {
 
         val accessor = MessageHeaderAccessor.getAccessor(result, StompHeaderAccessor::class.java)!!
         assertEquals("7", accessor.user?.name)
+    }
+
+    @Test
+    fun `CONNECT하면 토큰 만료 시각에 세션이 닫히도록 예약한다`() {
+        `when`(userRepository.existsById(7L)).thenReturn(true)
+        val token = jwtTokenProvider.createToken(7L, "user@gsm.hs.kr")
+        val expiresAt = jwtTokenProvider.getClaims(token)!!.expiration.toInstant()
+
+        interceptor.preSend(frame(StompCommand.CONNECT) { addNativeHeader("Authorization", "Bearer $token") }, channel)
+
+        verify(stompSessionExpiry).closeAt(SESSION_ID, expiresAt)
     }
 
     @Test
@@ -125,5 +139,9 @@ class StompAuthChannelInterceptorTest {
                 channel,
             )
         }
+    }
+
+    companion object {
+        private const val SESSION_ID = "session-1"
     }
 }

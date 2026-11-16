@@ -16,7 +16,9 @@
 | 하트비트 | 10초 / 10초 |
 | 허용 Origin | `app.cors.allowed-origins`와 같음 |
 
-토큰이 없거나 틀리면 CONNECT가 ERROR 프레임으로 거부된다. 토큰이 만료되면 다시 로그인한 뒤 새 토큰으로 다시 연결한다.
+토큰이 없거나 틀리면 CONNECT가 ERROR 프레임으로 거부된다.
+
+서버는 연결할 때 쓴 토큰의 만료 시각(`exp`)에 웹소켓을 **close code `4001`**(`token expired`)로 닫는다. 이 코드로 끊기면 토큰을 새로 받아 `connectHeaders`를 바꾼 뒤 다시 연결한다.
 
 ```ts
 import { Client } from '@stomp/stompjs';
