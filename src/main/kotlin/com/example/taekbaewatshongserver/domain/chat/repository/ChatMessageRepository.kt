@@ -33,15 +33,6 @@ interface ChatMessageRepository : JpaRepository<ChatMessage, Long> {
         @Param("readerId") readerId: Long,
     ): List<RoomUnreadCount>
 
-    @Query(
-        """
-        select count(m) from ChatMessage m
-        where (m.room.participantLow.id = :readerId or m.room.participantHigh.id = :readerId)
-          and m.sender.id <> :readerId and m.isRead = false
-        """,
-    )
-    fun countAllUnreadFor(@Param("readerId") readerId: Long): Long
-
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update ChatMessage m set m.isRead = true where m.room = :room and m.sender <> :reader and m.isRead = false")
     fun markAllAsReadBy(@Param("room") room: ChatRoom, @Param("reader") reader: User): Int

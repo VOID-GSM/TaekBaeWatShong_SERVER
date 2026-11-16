@@ -26,6 +26,7 @@ class ChatService(
     private val chatMessageRepository: ChatMessageRepository,
     private val userRepository: UserRepository,
     private val chatRoomCreator: ChatRoomCreator,
+    private val chatUnreadCounter: ChatUnreadCounter,
     private val chatSocketPublisher: ChatSocketPublisher,
 ) {
 
@@ -81,9 +82,7 @@ class ChatService(
             return ChatRoomListResponse(totalUnreadCount = 0, rooms = emptyList())
         }
 
-        val unreadCounts = chatMessageRepository
-            .countUnreadByRoomIds(rooms.map { it.id }, requireNotNull(user.id))
-            .associate { it.roomId to it.unreadCount.toInt() }
+        val unreadCounts = chatUnreadCounter.byRooms(rooms.map { it.id }, user)
 
         return ChatRoomListResponse(
             totalUnreadCount = unreadCounts.values.sum(),
@@ -159,7 +158,5 @@ class ChatService(
         return room
     }
 
-    private fun unreadCountOf(room: ChatRoom, user: User): Int = chatMessageRepository
-        .countByRoomAndSenderNotAndIsReadFalse(room, user)
-        .toInt()
+    private fun unreadCountOf(room: ChatRoom, user: User): Int = chatUnreadCounter.ofRoom(room, user)
 }

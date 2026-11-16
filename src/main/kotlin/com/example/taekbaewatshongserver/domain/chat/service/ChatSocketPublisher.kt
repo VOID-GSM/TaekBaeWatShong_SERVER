@@ -5,7 +5,6 @@ import com.example.taekbaewatshongserver.domain.chat.dto.response.ChatSocketEven
 import com.example.taekbaewatshongserver.domain.chat.dto.response.ChatSocketEventType
 import com.example.taekbaewatshongserver.domain.chat.entity.ChatMessage
 import com.example.taekbaewatshongserver.domain.chat.entity.ChatRoom
-import com.example.taekbaewatshongserver.domain.chat.repository.ChatMessageRepository
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -23,7 +22,7 @@ import org.springframework.transaction.event.TransactionalEventListener
  */
 @Component
 class ChatSocketPublisher(
-    private val chatMessageRepository: ChatMessageRepository,
+    private val chatUnreadCounter: ChatUnreadCounter,
     private val messagingTemplate: SimpMessagingTemplate,
     private val eventPublisher: ApplicationEventPublisher,
 ) {
@@ -48,8 +47,8 @@ class ChatSocketPublisher(
                 type = ChatSocketEventType.MESSAGE,
                 roomId = room.id,
                 message = ChatMessageResponse.of(message, receiver),
-                unreadCount = unreadCountOf(room, receiver),
-                totalUnreadCount = totalUnreadCountOf(receiver),
+                unreadCount = chatUnreadCounter.ofRoom(room, receiver),
+                totalUnreadCount = chatUnreadCounter.total(receiver),
             ),
         )
     }
@@ -63,7 +62,7 @@ class ChatSocketPublisher(
                 roomId = room.id,
                 readerId = reader.id,
                 unreadCount = 0,
-                totalUnreadCount = totalUnreadCountOf(reader),
+                totalUnreadCount = chatUnreadCounter.total(reader),
             ),
         )
         publish(
@@ -88,14 +87,6 @@ class ChatSocketPublisher(
     private fun publish(recipient: User, payload: ChatSocketEvent) {
         eventPublisher.publishEvent(ChatSocketDelivery(requireNotNull(recipient.id), payload))
     }
-
-    private fun unreadCountOf(room: ChatRoom, user: User): Int = chatMessageRepository
-        .countByRoomAndSenderNotAndIsReadFalse(room, user)
-        .toInt()
-
-    private fun totalUnreadCountOf(user: User): Int = chatMessageRepository
-        .countAllUnreadFor(requireNotNull(user.id))
-        .toInt()
 
     companion object {
         private const val CHAT_QUEUE = "/queue/chat"

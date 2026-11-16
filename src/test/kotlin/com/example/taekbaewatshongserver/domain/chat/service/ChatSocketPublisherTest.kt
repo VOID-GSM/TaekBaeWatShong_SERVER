@@ -4,7 +4,6 @@ import com.example.taekbaewatshongserver.domain.chat.dto.response.ChatSocketEven
 import com.example.taekbaewatshongserver.domain.chat.entity.ChatMessage
 import com.example.taekbaewatshongserver.domain.chat.entity.ChatRoom
 import com.example.taekbaewatshongserver.domain.chat.entity.ChatRoomType
-import com.example.taekbaewatshongserver.domain.chat.repository.ChatMessageRepository
 import com.example.taekbaewatshongserver.domain.user.entity.AuthProvider
 import com.example.taekbaewatshongserver.domain.user.entity.Role
 import com.example.taekbaewatshongserver.domain.user.entity.User
@@ -29,11 +28,11 @@ class ChatSocketPublisherTest {
     private val student = User(id = 2L, email = "student@gsm.hs.kr", name = "이학생", provider = AuthProvider.DATAGSM, role = Role.STUDENT)
     private val room = ChatRoom(id = 5L, type = ChatRoomType.DRIVER, participantLow = driver, participantHigh = student)
 
-    private val chatMessageRepository: ChatMessageRepository = mock(ChatMessageRepository::class.java)
+    private val chatUnreadCounter: ChatUnreadCounter = mock(ChatUnreadCounter::class.java)
     private val messagingTemplate: SimpMessagingTemplate = mock(SimpMessagingTemplate::class.java)
     private val published = mutableListOf<Any>()
     private val publisher = ChatSocketPublisher(
-        chatMessageRepository,
+        chatUnreadCounter,
         messagingTemplate,
         ApplicationEventPublisher { published += it },
     )
@@ -81,10 +80,10 @@ class ChatSocketPublisherTest {
         publisher.publishMessageSent(room, ChatMessage(id = 10L, room = room, sender = driver, content = "안녕하세요"))
         publisher.publishMessagesRead(room, student)
 
-        verify(chatMessageRepository, times(1)).countByRoomAndSenderNotAndIsReadFalse(room, student)
-        verify(chatMessageRepository, never()).countByRoomAndSenderNotAndIsReadFalse(room, driver)
-        verify(chatMessageRepository, times(2)).countAllUnreadFor(2L)
-        verify(chatMessageRepository, never()).countAllUnreadFor(1L)
+        verify(chatUnreadCounter, times(1)).ofRoom(room, student)
+        verify(chatUnreadCounter, never()).ofRoom(room, driver)
+        verify(chatUnreadCounter, times(2)).total(student)
+        verify(chatUnreadCounter, never()).total(driver)
     }
 
     @Test
