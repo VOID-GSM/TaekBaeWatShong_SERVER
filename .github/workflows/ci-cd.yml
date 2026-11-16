@@ -116,54 +116,119 @@ jobs:
           kind: CI
           stages: ${{ steps.stages.outputs.summary }}
 
-  # ⑤ 배포 (develop 푸시 + CI 통과 시에만)
+  # ⑤ 배포 (develop / main 푸시 + CI 통과 시에만) — GSMSV 서버에 SSH로 배포
+  #   develop → development 환경 서버, main → production 환경 서버
+  #   비밀번호 등 민감 정보는 GitHub Environment 시크릿(SSH_PASSWORD)으로만 관리한다.
   deploy:
-    name: Deploy to Cloudtype
+    name: Deploy to GSMSV (${{ github.ref_name }})
     needs: build
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    concurrency:
+      group: deploy-${{ github.ref_name }}
+      cancel-in-progress: false
+
+    env:
+      SSH_HOST: ssh.gsmsv.site
+      SSH_USER: ubuntu
+      SSH_PORT: ${{ github.ref_name == 'main' && '21132' || '24179' }}
+      APP_DIR: /home/ubuntu/taekbaewatshong
+      # GSMSV는 VM의 80(HTTP 포트)·10000(SVC 포트)만 외부로 열어준다.
+      # ubuntu 계정은 80을 직접 바인딩할 수 없으므로 SVC 포트(10000)로 띄운다.
+      # nginx 등으로 80 → 다른 포트를 프록시하고 있다면 이 값을 그 포트로 바꾼다.
+      APP_PORT: '10000'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy
-        uses: cloudtype-github-actions/deploy@v1
+      - name: Download jar
+        uses: actions/download-artifact@v4
         with:
-          token: ${{ secrets.CLOUDTYPE_TOKEN }}
-          project: s25020/taekbaewatshong-server
-          stage: main
-          yaml: |
-            name: taekbaewatshong-server
-            app: java@21
-            options:
-              ports: "8080"
-              start: java -jar build/libs/TaekBaeWatShong-server-0.0.1-SNAPSHOT.jar
-              env:
-                - name: GOOGLE_CLIENT_ID
-                  value: "${{ secrets.GOOGLE_CLIENT_ID }}"
-                - name: GOOGLE_CLIENT_SECRET
-                  value: "${{ secrets.GOOGLE_CLIENT_SECRET }}"
-                - name: DATAGSM_CLIENT_ID
-                  value: "${{ secrets.DATAGSM_CLIENT_ID }}"
-                - name: DATAGSM_CLIENT_SECRET
-                  value: "${{ secrets.DATAGSM_CLIENT_SECRET }}"
-                - name: JWT_SECRET
-                  value: "${{ secrets.JWT_SECRET }}"
-                - name: DB_URL
-                  value: "${{ secrets.DB_URL }}"
-                - name: DB_USERNAME
-                  value: "${{ secrets.DB_USERNAME }}"
-                - name: DB_PASSWORD
-                  value: "${{ secrets.DB_PASSWORD }}"
-              buildenv: []
-            context:
-              git:
-                # 공개 저장소이므로 HTTPS로 받는다. SSH를 쓰면 디플로이 키가 필요한데
-                # 조직 설정(deploy_keys_enabled_for_repositories=false)으로 등록이 막혀 있다.
-                url: ${{ github.server_url }}/${{ github.repository }}.git
-                branch: ${{ github.ref_name }}
+          name: app-jar
+          path: dist
+
+      - name: Prepare jar
+        run: |
+          JAR=$(ls dist/*.jar | grep -v -- '-plain.jar' | head -n 1)
+          test -n "$JAR"
+          mv "$JAR" dist/app.jar
+
+      - name: Install sshpass
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
+
+      - name: Upload jar
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 -p $SSH_PORT"
+          sshpass -e ssh $SSH_OPTS "$SSH_USER@$SSH_HOST" "mkdir -p '$APP_DIR/release'"
+          sshpass -e scp -o StrictHostKeyChecking=accept-new -P "$SSH_PORT" dist/app.jar "$SSH_USER@$SSH_HOST:$APP_DIR/release/app.jar"
+
+      - name: Restart application
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          DATAGSM_CLIENT_ID: ${{ secrets.DATAGSM_CLIENT_ID }}
+          DATAGSM_CLIENT_SECRET: ${{ secrets.DATAGSM_CLIENT_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          # 앱 환경변수는 서버 디스크에 남기지 않고 SSH 세션의 stdin으로만 전달한다.
+          {
+            for k in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET DATAGSM_CLIENT_ID DATAGSM_CLIENT_SECRET JWT_SECRET DB_URL DB_USERNAME DB_PASSWORD; do
+              printf 'export %s=%q\n' "$k" "${!k}"
+            done
+            printf 'export APP_DIR=%q\n' "$APP_DIR"
+            printf 'export SERVER_PORT=%q\n' "$APP_PORT"
+            cat <<'REMOTE'
+          set -euo pipefail
+          cd "$APP_DIR"
+
+          if ! command -v java >/dev/null 2>&1; then
+            echo "::error::서버에 java가 설치되어 있지 않습니다 (Java 21 필요)"
+            exit 1
+          fi
+
+          # 기존 프로세스 종료
+          if [ -f app.pid ] && kill -0 "$(cat app.pid)" 2>/dev/null; then
+            OLD_PID=$(cat app.pid)
+            kill "$OLD_PID"
+            for _ in $(seq 1 30); do kill -0 "$OLD_PID" 2>/dev/null || break; sleep 1; done
+            kill -9 "$OLD_PID" 2>/dev/null || true
+          fi
+          pkill -f "$APP_DIR/app.jar" 2>/dev/null || true
+
+          mv -f release/app.jar app.jar
+          [ -f app.log ] && mv -f app.log app.log.prev
+
+          nohup java -jar "$APP_DIR/app.jar" > app.log 2>&1 < /dev/null &
+          echo $! > app.pid
+          NEW_PID=$(cat app.pid)
+
+          # 기동 확인 (최대 120초)
+          for _ in $(seq 1 120); do
+            if ! kill -0 "$NEW_PID" 2>/dev/null; then
+              echo "::error::애플리케이션이 기동 중 종료되었습니다"
+              tail -n 80 app.log
+              exit 1
+            fi
+            if grep -q "Started .* in .* seconds" app.log; then
+              echo "애플리케이션 기동 완료 (PID $NEW_PID)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::120초 안에 기동 로그를 확인하지 못했습니다"
+          tail -n 80 app.log
+          exit 1
+          REMOTE
+          } | sshpass -e ssh -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" 'bash -s'
 
       - name: Notify Discord
         if: ${{ !cancelled() }}
