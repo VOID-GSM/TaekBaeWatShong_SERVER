@@ -53,6 +53,7 @@ class SecurityConfig(
                     "/oauth2/**",
                     "/login/**",
                     "/error",
+                    "/ws-chat",
                     "/swagger-ui.html",
                     "/swagger-ui/**",
                     "/v3/api-docs/**",
