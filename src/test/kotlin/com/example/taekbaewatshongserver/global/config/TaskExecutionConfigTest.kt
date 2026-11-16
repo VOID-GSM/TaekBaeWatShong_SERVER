@@ -44,6 +44,7 @@ class TaskExecutionConfigTest {
     )
     @Import(
         WebSocketConfig::class,
+        CorsAllowedOrigins::class,
         TaskExecutionConfig::class,
         StompAuthChannelInterceptor::class,
         JwtTokenProvider::class,

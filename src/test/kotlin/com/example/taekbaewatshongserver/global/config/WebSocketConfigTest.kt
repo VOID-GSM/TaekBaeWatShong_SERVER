@@ -55,7 +55,12 @@ class WebSocketConfigTest {
         WebSocketMessagingAutoConfiguration::class,
         JacksonAutoConfiguration::class,
     )
-    @Import(WebSocketConfig::class, StompAuthChannelInterceptor::class, JwtTokenProvider::class)
+    @Import(
+        WebSocketConfig::class,
+        CorsAllowedOrigins::class,
+        StompAuthChannelInterceptor::class,
+        JwtTokenProvider::class,
+    )
     class TestApplication
 
     @LocalServerPort

@@ -2,7 +2,6 @@ package com.example.taekbaewatshongserver.global.config
 
 import com.example.taekbaewatshongserver.global.security.websocket.StompAuthChannelInterceptor
 import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Lazy
 import org.springframework.messaging.simp.config.ChannelRegistration
@@ -22,14 +21,14 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 class WebSocketConfig(
     private val stompAuthChannelInterceptor: StompAuthChannelInterceptor,
-    @Value("#{'\${app.cors.allowed-origins}'.split(',')}") private val allowedOrigins: List<String>,
+    private val corsAllowedOrigins: CorsAllowedOrigins,
     // 브로커 설정이 이 클래스를 참조하므로, 순환 참조를 피하려고 @Lazy로 주입한다.
     @Lazy @Qualifier("messageBrokerTaskScheduler") private val messageBrokerTaskScheduler: TaskScheduler,
 ) : WebSocketMessageBrokerConfigurer {
 
     override fun registerStompEndpoints(registry: StompEndpointRegistry) {
         registry.addEndpoint(ENDPOINT)
-            .setAllowedOriginPatterns(*allowedOrigins.map { it.trim() }.toTypedArray())
+            .setAllowedOriginPatterns(*corsAllowedOrigins.values.toTypedArray())
     }
 
     override fun configureMessageBroker(registry: MessageBrokerRegistry) {
