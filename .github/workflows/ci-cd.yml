@@ -212,13 +212,18 @@ jobs:
           for pid in $PIDS; do kill -9 "$pid" 2>/dev/null || true; done
 
           # 포트가 비워질 때까지 대기
-          port_busy() { command -v ss >/dev/null 2>&1 && ss -ltn | grep -q ":$APP_PORT "; }
+          #   파이프(grep -q) 없이 ss 필터 결과만 보므로 pipefail + SIGPIPE 경합이 없다
+          port_busy() { command -v ss >/dev/null 2>&1 && [ -n "$(ss -Hltn "sport = :$APP_PORT")" ]; }
           for _ in $(seq 1 15); do
             port_busy || break
             sleep 1
           done
           if port_busy; then
-            echo "::error::$APP_PORT 포트를 다른 프로세스가 사용 중입니다"
+            echo "::error::$APP_PORT 포트를 다른 프로세스가 사용 중입니다 (아래 점유 프로세스 확인)"
+            ss -Hltnp "sport = :$APP_PORT" || true
+            for pid in $(ss -Hltnp "sport = :$APP_PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u); do
+              ps -o pid,user,cmd -p "$pid" || true
+            done
             exit 1
           fi
 
