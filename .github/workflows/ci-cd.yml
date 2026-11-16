@@ -118,7 +118,8 @@ jobs:
 
   # ⑤ 배포 (develop / main 푸시 + CI 통과 시에만) — GSMSV 서버에 SSH로 배포
   #   develop → development 환경 서버, main → production 환경 서버
-  #   비밀번호 등 민감 정보는 GitHub Environment 시크릿(SSH_PASSWORD)으로만 관리한다.
+  #   GitHub에는 SSH 비밀번호(Environment 시크릿 SSH_PASSWORD)만 두고,
+  #   앱 환경변수(DB·JWT·OAuth·CORS 등)는 서버의 .env 파일을 그대로 읽는다.
   deploy:
     name: Deploy to GSMSV (${{ github.ref_name }})
     needs: build
@@ -134,11 +135,12 @@ jobs:
       SSH_HOST: ssh.gsmsv.site
       SSH_USER: ubuntu
       SSH_PORT: ${{ github.ref_name == 'main' && '21132' || '24179' }}
+      # jar·로그·pid를 두는 디렉터리
       APP_DIR: /home/ubuntu/taekbaewatshong
-      # GSMSV는 VM의 80(HTTP 포트)·10000(SVC 포트)만 외부로 열어준다.
-      # ubuntu 계정은 80을 직접 바인딩할 수 없으므로 SVC 포트(10000)로 띄운다.
-      # nginx 등으로 80 → 다른 포트를 프록시하고 있다면 이 값을 그 포트로 바꾼다.
-      APP_PORT: '10000'
+      # 서버에서 직접 관리하는 앱 환경변수 파일
+      ENV_FILE: /home/ubuntu/TaekBaeWatShong_SERVER/.env
+      # 기존 수동 배포와 같은 포트
+      APP_PORT: '8080'
 
     steps:
       - name: Checkout
@@ -170,22 +172,9 @@ jobs:
       - name: Restart application
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          DATAGSM_CLIENT_ID: ${{ secrets.DATAGSM_CLIENT_ID }}
-          DATAGSM_CLIENT_SECRET: ${{ secrets.DATAGSM_CLIENT_SECRET }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          DB_URL: ${{ secrets.DB_URL }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          # 앱 환경변수는 서버 디스크에 남기지 않고 SSH 세션의 stdin으로만 전달한다.
           {
-            for k in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET DATAGSM_CLIENT_ID DATAGSM_CLIENT_SECRET JWT_SECRET DB_URL DB_USERNAME DB_PASSWORD; do
-              printf 'export %s=%q\n' "$k" "${!k}"
-            done
-            printf 'export APP_DIR=%q\n' "$APP_DIR"
-            printf 'export SERVER_PORT=%q\n' "$APP_PORT"
+            printf 'export APP_DIR=%q ENV_FILE=%q APP_PORT=%q\n' "$APP_DIR" "$ENV_FILE" "$APP_PORT"
             cat <<'REMOTE'
           set -euo pipefail
           cd "$APP_DIR"
@@ -194,18 +183,47 @@ jobs:
             echo "::error::서버에 java가 설치되어 있지 않습니다 (Java 21 필요)"
             exit 1
           fi
-
-          # 기존 프로세스 종료
-          if [ -f app.pid ] && kill -0 "$(cat app.pid)" 2>/dev/null; then
-            OLD_PID=$(cat app.pid)
-            kill "$OLD_PID"
-            for _ in $(seq 1 30); do kill -0 "$OLD_PID" 2>/dev/null || break; sleep 1; done
-            kill -9 "$OLD_PID" 2>/dev/null || true
+          if [ ! -f "$ENV_FILE" ]; then
+            echo "::error::환경변수 파일이 없습니다: $ENV_FILE"
+            exit 1
           fi
-          pkill -f "$APP_DIR/app.jar" 2>/dev/null || true
+
+          # .env 로드 — 값을 셸로 해석하지 않고 KEY=VALUE 그대로 export 한다 (빈 줄·주석 무시, 양끝 따옴표 제거)
+          while IFS= read -r line || [ -n "$line" ]; do
+            line="${line%$'\r'}"
+            case "$line" in ''|'#'*) continue ;; esac
+            key="${line%%=*}"
+            value="${line#*=}"
+            key="$(printf '%s' "$key" | sed 's/^export[[:space:]]*//; s/[[:space:]]*$//')"
+            case "$value" in \"*\") value="${value#\"}"; value="${value%\"}" ;; \'*\') value="${value#\'}"; value="${value%\'}" ;; esac
+            export "$key=$value"
+          done < "$ENV_FILE"
+          export SERVER_PORT="$APP_PORT"
+
+          # 기존 프로세스 종료 — 이 워크플로가 띄운 jar와 수동으로 띄운 jar 모두
+          PIDS="$(pgrep -u "$(id -u)" -f "java .*-jar .*(TaekBaeWatShong-server.*\\.jar|$APP_DIR/app\\.jar)" | tr '\n' ' ' || true)"
+          for pid in $PIDS; do kill "$pid" 2>/dev/null || true; done
+          for _ in $(seq 1 30); do
+            alive=""
+            for pid in $PIDS; do kill -0 "$pid" 2>/dev/null && alive="$alive $pid"; done
+            [ -z "$alive" ] && break
+            sleep 1
+          done
+          for pid in $PIDS; do kill -9 "$pid" 2>/dev/null || true; done
+
+          # 포트가 비워질 때까지 대기
+          port_busy() { command -v ss >/dev/null 2>&1 && ss -ltn | grep -q ":$APP_PORT "; }
+          for _ in $(seq 1 15); do
+            port_busy || break
+            sleep 1
+          done
+          if port_busy; then
+            echo "::error::$APP_PORT 포트를 다른 프로세스가 사용 중입니다"
+            exit 1
+          fi
 
           mv -f release/app.jar app.jar
-          [ -f app.log ] && mv -f app.log app.log.prev
+          if [ -f app.log ]; then mv -f app.log app.log.prev; fi
 
           nohup java -jar "$APP_DIR/app.jar" > app.log 2>&1 < /dev/null &
           echo $! > app.pid
@@ -219,7 +237,7 @@ jobs:
               exit 1
             fi
             if grep -q "Started .* in .* seconds" app.log; then
-              echo "애플리케이션 기동 완료 (PID $NEW_PID)"
+              echo "애플리케이션 기동 완료 (PID $NEW_PID, 포트 $APP_PORT)"
               exit 0
             fi
             sleep 1
