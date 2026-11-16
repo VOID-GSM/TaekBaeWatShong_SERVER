@@ -42,9 +42,6 @@ interface ChatMessageRepository : JpaRepository<ChatMessage, Long> {
     )
     fun countAllUnreadFor(@Param("readerId") readerId: Long): Long
 
-    @EntityGraph(attributePaths = ["sender"])
-    fun findWithSenderById(id: Long): ChatMessage?
-
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update ChatMessage m set m.isRead = true where m.room = :room and m.sender <> :reader and m.isRead = false")
     fun markAllAsReadBy(@Param("room") room: ChatRoom, @Param("reader") reader: User): Int

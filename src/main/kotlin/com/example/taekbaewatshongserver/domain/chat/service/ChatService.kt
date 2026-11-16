@@ -10,7 +10,6 @@ import com.example.taekbaewatshongserver.domain.chat.repository.ChatRoomReposito
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.exception.ChatException
-import org.springframework.context.ApplicationEventPublisher
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -27,7 +26,7 @@ class ChatService(
     private val chatMessageRepository: ChatMessageRepository,
     private val userRepository: UserRepository,
     private val chatRoomCreator: ChatRoomCreator,
-    private val eventPublisher: ApplicationEventPublisher,
+    private val chatSocketPublisher: ChatSocketPublisher,
 ) {
 
     fun getPartners(user: User, keyword: String?, page: Int?, size: Int?): ChatPartnerListResponse {
@@ -133,7 +132,7 @@ class ChatService(
             ),
         )
         chatRoomRepository.updateLastMessageIfNewer(room.id, ChatRoom.previewOf(message.content), message.createdAt)
-        eventPublisher.publishEvent(ChatMessageSentEvent(message.id))
+        chatSocketPublisher.publishMessageSent(room, message)
 
         return ChatMessageResponse.of(message, user)
     }
@@ -143,7 +142,7 @@ class ChatService(
         val room = findParticipatingRoom(user, roomId)
         val readCount = chatMessageRepository.markAllAsReadBy(room, user)
         if (readCount > 0) {
-            eventPublisher.publishEvent(ChatMessagesReadEvent(roomId, requireNotNull(user.id)))
+            chatSocketPublisher.publishMessagesRead(room, user)
         }
 
         return ChatMessageReadResponse(roomId = roomId, readCount = readCount, unreadCount = 0)
