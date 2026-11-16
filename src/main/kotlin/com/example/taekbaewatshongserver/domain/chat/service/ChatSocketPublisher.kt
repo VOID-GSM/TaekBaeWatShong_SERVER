@@ -80,7 +80,11 @@ class ChatSocketPublisher(
         try {
             messagingTemplate.convertAndSendToUser(delivery.recipientId.toString(), CHAT_QUEUE, delivery.payload)
         } catch (e: Exception) {
-            log.error("[채팅 실시간 전달 실패] recipientId: {}, payload: {}", delivery.recipientId, delivery.payload, e)
+            val payload = delivery.payload
+            log.error(
+                "[채팅 실시간 전달 실패] recipientId: {}, type: {}, roomId: {}, messageId: {}",
+                delivery.recipientId, payload.type, payload.roomId, payload.message?.id, e,
+            )
         }
     }
 
