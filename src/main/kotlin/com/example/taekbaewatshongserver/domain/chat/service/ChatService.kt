@@ -26,6 +26,8 @@ class ChatService(
     private val chatMessageRepository: ChatMessageRepository,
     private val userRepository: UserRepository,
     private val chatRoomCreator: ChatRoomCreator,
+    private val chatUnreadCounter: ChatUnreadCounter,
+    private val chatSocketPublisher: ChatSocketPublisher,
 ) {
 
     fun getPartners(user: User, keyword: String?, page: Int?, size: Int?): ChatPartnerListResponse {
@@ -80,9 +82,7 @@ class ChatService(
             return ChatRoomListResponse(totalUnreadCount = 0, rooms = emptyList())
         }
 
-        val unreadCounts = chatMessageRepository
-            .countUnreadByRoomIds(rooms.map { it.id }, requireNotNull(user.id))
-            .associate { it.roomId to it.unreadCount.toInt() }
+        val unreadCounts = chatUnreadCounter.byRooms(rooms.map { it.id }, user)
 
         return ChatRoomListResponse(
             totalUnreadCount = unreadCounts.values.sum(),
@@ -131,6 +131,7 @@ class ChatService(
             ),
         )
         chatRoomRepository.updateLastMessageIfNewer(room.id, ChatRoom.previewOf(message.content), message.createdAt)
+        chatSocketPublisher.publishMessageSent(room, message)
 
         return ChatMessageResponse.of(message, user)
     }
@@ -139,6 +140,9 @@ class ChatService(
     fun markAsRead(user: User, roomId: Long): ChatMessageReadResponse {
         val room = findParticipatingRoom(user, roomId)
         val readCount = chatMessageRepository.markAllAsReadBy(room, user)
+        if (readCount > 0) {
+            chatSocketPublisher.publishMessagesRead(room, user)
+        }
 
         return ChatMessageReadResponse(roomId = roomId, readCount = readCount, unreadCount = 0)
     }
@@ -154,7 +158,5 @@ class ChatService(
         return room
     }
 
-    private fun unreadCountOf(room: ChatRoom, user: User): Int = chatMessageRepository
-        .countByRoomAndSenderNotAndIsReadFalse(room, user)
-        .toInt()
+    private fun unreadCountOf(room: ChatRoom, user: User): Int = chatUnreadCounter.ofRoom(room, user)
 }

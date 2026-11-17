@@ -41,7 +41,7 @@ Everything currently implemented:
 | Unclaimed TOP 3 | **MISSING** | `unclaimedDays` exists, but no ranking endpoint |
 | Pickup by barcode scan | **DONE** | `PATCH /parcel/claim` by invoice number, with ownership check |
 | Lost report | **MISSING** | no aggregate |
-| 1:1 chat | **MISSING** | no aggregate, no transport configured |
+| 1:1 chat | **DONE** | REST `/chat/**` + realtime STOMP push (`/ws-chat`, `/user/queue/chat`). See `docs/CHAT-REALTIME.md` |
 | Notifications | **PARTIAL** | `ParcelArrivedEvent` + `ParcelEventListener` exist with correct async/after-commit semantics, but the handler only calls `println`. No other trigger, no delivery transport, no persistence |
 
 ## Admin
@@ -58,7 +58,7 @@ Everything currently implemented:
 | Zone assignment | **DONE** | `PATCH /parcel/{id}/zone`, and optionally during arrival scan |
 | Unclaimed TOP 3 | **MISSING** | |
 | Lost-report list | **MISSING** | |
-| 1:1 chat (both directions) | **MISSING** | |
+| 1:1 chat (both directions) | **DONE** | driver ↔ student/teacher; student ↔ teacher when both use DataGSM |
 | Driver scan page (physical scanner) | **DONE** | `PATCH /parcel/complete` — a hardware scanner just types the invoice number |
 | Arrival notification on scan | **PARTIAL** | event fires, handler prints |
 | Driver QR generation | **MISSING** | |
@@ -75,7 +75,7 @@ Rough dependency order for the missing work:
 4. **`notification` aggregate** — blocks all five notification triggers. Needs a persistence model and a scheduler (`@EnableScheduling` is not enabled), plus a transport decision.
 5. **`driver` aggregate + QR** — blocks two admin pages. Needs open question #5 answered first (is a driver a `User` or its own entity?).
 6. **Bulk arrival** — depends on (5), since the driver list is what it operates on.
-7. **`chat` aggregate** — largest and most independent; needs a transport decision that affects `SecurityConfig`.
+7. ~~**`chat` aggregate**~~ — done (STOMP over WebSocket, in-memory simple broker; swap to a relay broker before running more than one instance).
 8. **Delivery progress stages** — depends on open question #1 and on what the Apick API actually returns.
 
 ## Defects and risks found in the current code
