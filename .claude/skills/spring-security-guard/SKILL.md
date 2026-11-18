@@ -99,6 +99,7 @@ Note also that the filter hits the database on **every request** to load the use
 - `createToken(userId, email)` puts the user id in `sub` and email in an `email` claim. Validity is `jwt.access-token-validity-ms`, default 1 hour.
 - There is **no refresh token** and no revocation list. A token is valid until it expires.
 - `getClaims` returns `null` for expired, malformed, and illegal-argument cases alike, so the filter cannot distinguish "expired" from "forged" — both produce an unauthenticated request and then a generic 401. If a caller needs "token expired" specifically, that is a change to `JwtTokenProvider`, not something a controller can infer.
+- **One exception accepts expired tokens:** `DELETE /notification/token` (logout cleanup of the device push token). `JwtAuthenticationFilter.EXPIRED_TOKEN_ALLOWED` routes that request to `getClaimsAllowingExpired`, which still rejects a bad signature — jjwt verifies the signature before checking `exp`. It exists because there is no refresh token, so a logout after the 1-hour lifetime would otherwise leave the device receiving the old account's pushes (#36). Do not add a path to that matcher unless the request only *removes* the caller's own data; never use it for reads or for anything that grants access.
 
 Do not add claims casually: anything you put in the token is readable by the client (JWTs are signed, not encrypted) and cannot be revoked before expiry.
 
