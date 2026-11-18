@@ -1,7 +1,5 @@
 package com.example.taekbaewatshongserver.domain.notification.service
 
-import com.example.taekbaewatshongserver.domain.notification.push.ExpoPushClient
-import com.example.taekbaewatshongserver.domain.notification.push.ExpoPushMessage
 import com.example.taekbaewatshongserver.domain.notification.repository.DeviceTokenRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value

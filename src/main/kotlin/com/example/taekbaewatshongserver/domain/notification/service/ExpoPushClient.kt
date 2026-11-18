@@ -1,4 +1,4 @@
-package com.example.taekbaewatshongserver.domain.notification.push
+package com.example.taekbaewatshongserver.domain.notification.service
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude
