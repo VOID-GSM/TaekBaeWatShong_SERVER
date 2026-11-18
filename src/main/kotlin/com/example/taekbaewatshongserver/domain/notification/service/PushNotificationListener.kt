@@ -1,6 +1,7 @@
 package com.example.taekbaewatshongserver.domain.notification.service
 
 import com.example.taekbaewatshongserver.domain.notification.repository.DeviceTokenRepository
+import com.example.taekbaewatshongserver.global.config.TaskExecutionConfig
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Async
@@ -9,7 +10,7 @@ import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
 
 /**
- * 알림 저장 트랜잭션이 커밋된 뒤 별도 스레드에서 수신자의 모든 기기로 푸시를 보낸다.
+ * 알림 저장 트랜잭션이 커밋된 뒤 푸시 전용 실행기([TaskExecutionConfig.PUSH_TASK_EXECUTOR])에서 수신자의 모든 기기로 푸시를 보낸다.
  * 발송이 실패해도 알림 저장이나 택배 처리에는 영향이 없다.
  */
 @Component
@@ -24,7 +25,7 @@ class PushNotificationListener(
     private val log = LoggerFactory.getLogger(javaClass)
     private val channelId = androidChannelId.ifBlank { null }
 
-    @Async
+    @Async(TaskExecutionConfig.PUSH_TASK_EXECUTOR)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     fun handleNotificationCreated(event: NotificationCreatedEvent) {
         if (!enabled) return
