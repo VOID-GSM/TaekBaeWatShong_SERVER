@@ -19,6 +19,7 @@ import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Isolation
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 
 @Service
 @Transactional(readOnly = true)
@@ -108,7 +109,16 @@ class ReportService(
 
         val reporterId = requireNotNull(report.reporter.id)
         val result = chatService.createOrGetRoom(admin, ChatRoomCreateRequest(partnerId = reporterId))
-        report.linkChatRoom(chatRoomRepository.getReferenceById(result.room.id))
+        val linked = reportRepository.linkChatRoomIfAbsent(reportId, chatRoomRepository.getReferenceById(result.room.id), LocalDateTime.now())
+
+        if (linked == 0) {
+            val linkedRoomId = reportRepository.findById(reportId)
+                .orElseThrow { ReportException.NotFound() }
+                .chatRoom?.id
+            if (linkedRoomId != result.room.id) {
+                throw ReportException.ChatAlreadyStarted()
+            }
+        }
 
         return result
     }
