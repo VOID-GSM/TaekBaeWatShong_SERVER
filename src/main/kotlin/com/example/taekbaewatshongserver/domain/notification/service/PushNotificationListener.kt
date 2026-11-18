@@ -42,8 +42,10 @@ class PushNotificationListener(
             .map { it.deviceToken }
             .partition { ExpoPushClient.isExpoPushToken(it) }
 
+        // 등록 시 형식을 검사하기 전에 저장된 토큰은 Expo로 보내지 않아 DeviceNotRegistered로도 지워지지 않으므로 여기서 지운다.
         if (invalidTokens.isNotEmpty()) {
-            log.warn("[푸시 발송 스킵] Expo 형식이 아닌 토큰 {}개 무시. recipientId: {}", invalidTokens.size, event.recipientId)
+            deviceTokenRepository.deleteAllByDeviceTokenIn(invalidTokens)
+            log.info("[무효 토큰 삭제] Expo 형식이 아닌 토큰 {}개 삭제. recipientId: {}", invalidTokens.size, event.recipientId)
         }
         if (expoTokens.isEmpty()) return
 
