@@ -14,7 +14,7 @@ data class ReportDetailResponse(
     val reporterName: String,
     @field:Schema(description = "신고자 역할. STUDENT(학생) / TEACHER(선생님) / ADMIN(관리자·택배기사)", example = "STUDENT")
     val reporterRole: Role,
-    @field:Schema(description = "신고자 학번 (학번이 없는 선생님 등은 null)", example = "2401")
+    @field:Schema(description = "신고자 학번. 선생님·관리자와 Google로 가입한 학생처럼 학번이 없으면 null", example = "2401")
     val studentNumber: String? = null,
     @field:Schema(description = "택배 별칭", example = "운동화")
     val alias: String,

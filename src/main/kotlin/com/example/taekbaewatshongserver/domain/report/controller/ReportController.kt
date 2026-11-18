@@ -140,6 +140,7 @@ class ReportController(
 
             - `chatRoomId`가 있으면 관리자가 이 신고로 채팅을 시작한 상태(채팅 요청)다. 없으면 `POST /report/{reportId}/chat`으로 시작한다.
             - `reporterRole`이 TEACHER면 학번(`studentNumber`) 대신 "선생님"으로 표시한다.
+            - `reporterRole`이 STUDENT여도 `studentNumber`가 null일 수 있다. 학번은 DataGSM 로그인과 이메일 가입에서만 채워지므로, Google로 가입한 학생은 학번 없이 이름만 표시한다.
         """,
     )
     @ApiResponses(
