@@ -9,6 +9,7 @@ import com.example.taekbaewatshongserver.domain.notification.repository.Notifica
 import com.example.taekbaewatshongserver.domain.parcel.entity.Parcel
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.global.exception.NotificationException
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.PageRequest
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
@@ -21,6 +22,7 @@ private const val MAX_SIZE = 100
 @Transactional(readOnly = true)
 class NotificationService(
     private val notificationRepository: NotificationRepository,
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
 
     fun getNotifications(user: User, cursor: Long?, size: Int?): NotificationListResponse {
@@ -83,6 +85,21 @@ class NotificationService(
             recipient = recipient,
             unclaimedDays = unclaimedDays,
         )
-        return notificationRepository.save(notification)
+        val saved = notificationRepository.save(notification)
+
+        val recipientId = recipient.id
+        if (recipientId != null) {
+            eventPublisher.publishEvent(
+                NotificationCreatedEvent(
+                    notificationId = saved.id,
+                    recipientId = recipientId,
+                    parcelId = parcel.id,
+                    type = type,
+                    title = title,
+                    message = message,
+                ),
+            )
+        }
+        return saved
     }
 }
