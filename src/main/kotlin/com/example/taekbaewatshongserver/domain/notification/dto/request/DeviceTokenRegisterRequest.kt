@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 data class DeviceTokenRegisterRequest(
     @field:Schema(
         description = "Expo 푸시 토큰. 앱에서 getExpoPushTokenAsync()로 받은 값을 그대로 보낸다. " +
-            "ExponentPushToken[...] 형식이 아니면 저장은 되지만 푸시 발송 대상에서 제외된다.",
+            "ExponentPushToken[...] 형식이 아니면 400으로 거절된다.",
         example = "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
         requiredMode = Schema.RequiredMode.REQUIRED,
     )
