@@ -45,9 +45,4 @@ class Report(
         this.progress = newProgress
         this.updatedAt = LocalDateTime.now()
     }
-
-    fun linkChatRoom(room: ChatRoom) {
-        this.chatRoom = room
-        this.updatedAt = LocalDateTime.now()
-    }
 }
