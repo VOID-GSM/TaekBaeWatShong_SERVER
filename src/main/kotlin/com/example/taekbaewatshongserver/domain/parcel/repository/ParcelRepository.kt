@@ -55,4 +55,20 @@ interface ParcelRepository : JpaRepository<Parcel, Long> {
     fun findAllByStatusAndZoneIn(status: ParcelStatus, zones: List<Zone>): List<Parcel>
 
     fun existsByInvoiceNumber(invoiceNumber: String): Boolean
+
+    @Query(
+        """
+        SELECT new com.example.taekbaewatshongserver.domain.parcel.repository.ZoneParcelCount(p.zone, COUNT(p))
+        FROM Parcel p
+        WHERE p.status = :status
+          AND p.zone IS NOT NULL
+        GROUP BY p.zone
+    """,
+    )
+    fun countByStatusGroupByZone(@Param("status") status: ParcelStatus): List<ZoneParcelCount>
 }
+
+data class ZoneParcelCount(
+    val zone: Zone,
+    val count: Long,
+)
