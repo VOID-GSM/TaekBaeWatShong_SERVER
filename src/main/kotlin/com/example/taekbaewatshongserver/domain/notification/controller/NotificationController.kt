@@ -100,7 +100,7 @@ class NotificationController(
     @Operation(
         summary = "디바이스 토큰 등록",
         description = """
-            푸시 알림을 받을 기기의 토큰(FCM 등)을 등록한다. 앱 실행·로그인 시마다 호출해도 된다.
+            푸시 알림을 받을 기기의 Expo 푸시 토큰을 등록한다. 앱 실행·로그인 시마다 호출해도 된다.
 
             - 이미 등록된 토큰이면 새로 만들지 않고, 소유자를 현재 사용자로·플랫폼을 요청 값으로 바꾼다. (기기에서 계정을 바꿔 로그인한 경우)
         """,
@@ -109,11 +109,14 @@ class NotificationController(
         ApiResponse(responseCode = "201", description = "등록 성공 (기존 토큰을 갱신한 경우에도 201)"),
         ApiResponse(
             responseCode = "400",
-            description = "`platform`이 ANDROID / IOS / WEB 중 하나가 아님",
+            description = "`deviceToken`이 Expo 푸시 토큰(`ExponentPushToken[...]`) 형식이 아니거나, `platform`이 ANDROID / IOS / WEB 중 하나가 아님",
             content = [
                 Content(
                     schema = Schema(implementation = ErrorResponse::class),
-                    examples = [ExampleObject(value = """{"message": "유효하지 않은 플랫폼입니다. (WINDOWS)"}""")],
+                    examples = [
+                        ExampleObject(name = "토큰 형식 오류", value = """{"message": "Expo 푸시 토큰 형식이 아닙니다. (ExponentPushToken[...])"}"""),
+                        ExampleObject(name = "플랫폼 오류", value = """{"message": "유효하지 않은 플랫폼입니다. (WINDOWS)"}"""),
+                    ],
                 ),
             ],
         ),

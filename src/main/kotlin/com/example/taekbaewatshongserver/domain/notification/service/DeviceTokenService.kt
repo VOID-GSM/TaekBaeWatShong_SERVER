@@ -26,6 +26,10 @@ class DeviceTokenService(
             throw NotificationException.InvalidPlatform("유효하지 않은 플랫폼입니다. (${request.platform})")
         }
 
+        if (!ExpoPushClient.isExpoPushToken(request.deviceToken)) {
+            throw NotificationException.InvalidDeviceToken()
+        }
+
         val deviceToken = deviceTokenRepository.findByDeviceToken(request.deviceToken)
             ?.apply { reassign(user, platform) }
             ?: DeviceToken(
