@@ -7,7 +7,6 @@ import com.example.taekbaewatshongserver.global.security.oauth.CustomOAuth2UserS
 import com.example.taekbaewatshongserver.global.security.oauth.DelegatingAuthorizationCodeTokenResponseClient
 import com.example.taekbaewatshongserver.global.security.oauth.OAuth2AuthenticationFailureHandler
 import com.example.taekbaewatshongserver.global.security.oauth.OAuth2AuthenticationSuccessHandler
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
@@ -31,7 +30,7 @@ class SecurityConfig(
     private val oAuth2AuthenticationFailureHandler: OAuth2AuthenticationFailureHandler,
     private val jwtTokenProvider: JwtTokenProvider,
     private val userRepository: UserRepository,
-    @Value("#{'\${app.cors.allowed-origins}'.split(',')}") private val allowedOrigins: List<String>,
+    private val corsAllowedOrigins: CorsAllowedOrigins,
 ) {
 
     @Bean
@@ -53,6 +52,10 @@ class SecurityConfig(
                     "/oauth2/**",
                     "/login/**",
                     "/error",
+                    "/ws-chat",
+                    "/swagger-ui.html",
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**",
                 ).permitAll()
                 it.anyRequest().authenticated()
             }
@@ -75,7 +78,7 @@ class SecurityConfig(
 
     private fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
-            allowedOriginPatterns = this@SecurityConfig.allowedOrigins
+            allowedOriginPatterns = corsAllowedOrigins.values
             allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
             allowCredentials = true

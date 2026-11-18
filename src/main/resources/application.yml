@@ -66,3 +66,14 @@ notification:
       url: ${EXPO_PUSH_URL:https://exp.host/--/api/v2/push/send}
       # Expo 대시보드에서 "Enhanced security for push notifications"를 켠 경우에만 필요
       access-token: ${EXPO_ACCESS_TOKEN:}
+
+server:
+  # 리버스 프록시(HTTPS 종료) 뒤에서 X-Forwarded-Proto/Host를 신뢰해 {baseUrl}과 리다이렉트를 https로 만든다.
+  forward-headers-strategy: framework
+
+springdoc:
+  default-produces-media-type: application/json
+  swagger-ui:
+    path: /swagger-ui.html
+    persist-authorization: true
+    display-request-duration: true
