@@ -11,12 +11,12 @@ interface ReportRepository : JpaRepository<Report, Long> {
 
     fun existsByParcel(parcel: Parcel): Boolean
 
-    @EntityGraph(attributePaths = ["parcel"])
+    @EntityGraph(attributePaths = ["parcel", "chatRoom"])
     fun findAllByReporterOrderByCreatedAtDesc(reporter: User): List<Report>
 
-    @EntityGraph(attributePaths = ["parcel", "reporter"])
+    @EntityGraph(attributePaths = ["parcel", "reporter", "chatRoom"])
     fun findAllByOrderByCreatedAtDesc(): List<Report>
 
-    @EntityGraph(attributePaths = ["parcel", "reporter"])
+    @EntityGraph(attributePaths = ["parcel", "reporter", "chatRoom"])
     fun findAllByProgressOrderByCreatedAtDesc(progress: ReportProgress): List<Report>
 }
