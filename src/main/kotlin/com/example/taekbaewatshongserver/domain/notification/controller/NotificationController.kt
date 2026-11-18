@@ -148,10 +148,12 @@ class NotificationController(
             - 로그인한 사용자 본인 소유의 토큰만 삭제한다.
             - 등록되지 않은 토큰이거나 이미 다른 사용자에게 넘어간 토큰이면 아무것도 지우지 않고 똑같이 204로 응답한다. (로그아웃을 막지 않도록)
             - 액세스 토큰을 지우기 **전에** 호출해야 한다.
+            - 이 API만 **만료된 액세스 토큰도 받는다** (서명이 맞을 때). 리프레시 토큰이 없어 로그인 1시간 뒤 401로 로그아웃되는 경우에도 토큰을 지울 수 있게 하기 위해서다. 앱은 만료 여부와 관계없이 저장된 액세스 토큰을 그대로 실어 보내면 된다.
         """,
     )
     @ApiResponses(
         ApiResponse(responseCode = "204", description = "삭제 성공 (지울 토큰이 없어도 204)"),
+        ApiResponse(responseCode = "401", description = "액세스 토큰이 없거나, 서명이 맞지 않거나, 형식이 틀림 (만료만 된 토큰은 받는다)"),
     )
     @DeleteMapping("/token")
     fun deleteDeviceToken(
