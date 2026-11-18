@@ -24,12 +24,14 @@ spring:
           google:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
+            # 프록시가 원래 프로토콜을 넘기지 않으면 {baseUrl}이 http로 만들어지므로, 배포 서버는 OAUTH2_CALLBACK_BASE_URL로 https 주소를 고정한다.
+            redirect-uri: "${OAUTH2_CALLBACK_BASE_URL:{baseUrl}}/login/oauth2/code/{registrationId}"
             scope: email,profile
           datagsm:
             client-id: ${DATAGSM_CLIENT_ID}
             client-secret: ${DATAGSM_CLIENT_SECRET}
             authorization-grant-type: authorization_code
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            redirect-uri: "${OAUTH2_CALLBACK_BASE_URL:{baseUrl}}/login/oauth2/code/{registrationId}"
             client-name: DataGSM
             scope: "datagsm:self_read"
         provider:
