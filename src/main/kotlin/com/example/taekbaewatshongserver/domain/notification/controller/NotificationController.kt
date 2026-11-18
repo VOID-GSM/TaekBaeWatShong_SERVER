@@ -1,5 +1,6 @@
 package com.example.taekbaewatshongserver.domain.notification.controller
 
+import com.example.taekbaewatshongserver.domain.notification.dto.request.DeviceTokenDeleteRequest
 import com.example.taekbaewatshongserver.domain.notification.dto.request.DeviceTokenRegisterRequest
 import com.example.taekbaewatshongserver.domain.notification.dto.response.DeviceTokenResponse
 import com.example.taekbaewatshongserver.domain.notification.dto.response.NotificationListResponse
@@ -137,5 +138,27 @@ class NotificationController(
     ): ResponseEntity<DeviceTokenResponse> {
         val response = deviceTokenService.registerDeviceToken(user, request)
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
+    }
+
+    @Operation(
+        summary = "디바이스 토큰 삭제",
+        description = """
+            로그아웃할 때 이 기기의 푸시 토큰을 현재 사용자에게서 해제한다. 해제한 뒤에는 이 기기로 이전 계정의 알림이 가지 않는다.
+
+            - 로그인한 사용자 본인 소유의 토큰만 삭제한다.
+            - 등록되지 않은 토큰이거나 이미 다른 사용자에게 넘어간 토큰이면 아무것도 지우지 않고 똑같이 204로 응답한다. (로그아웃을 막지 않도록)
+            - 액세스 토큰을 지우기 **전에** 호출해야 한다.
+        """,
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "204", description = "삭제 성공 (지울 토큰이 없어도 204)"),
+    )
+    @DeleteMapping("/token")
+    fun deleteDeviceToken(
+        @AuthenticationPrincipal user: User,
+        @RequestBody request: DeviceTokenDeleteRequest,
+    ): ResponseEntity<Void> {
+        deviceTokenService.deleteDeviceToken(user, request)
+        return ResponseEntity.noContent().build()
     }
 }
