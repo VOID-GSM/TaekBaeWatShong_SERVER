@@ -1,5 +1,6 @@
 package com.example.taekbaewatshongserver.domain.notification.service
 
+import com.example.taekbaewatshongserver.domain.notification.dto.request.DeviceTokenDeleteRequest
 import com.example.taekbaewatshongserver.domain.notification.dto.request.DeviceTokenRegisterRequest
 import com.example.taekbaewatshongserver.domain.notification.dto.response.DeviceTokenResponse
 import com.example.taekbaewatshongserver.domain.notification.entity.DevicePlatform
@@ -38,5 +39,11 @@ class DeviceTokenService(
         } catch (e: DataIntegrityViolationException) {
             throw NotificationException.Conflict()
         }
+    }
+
+    @Transactional
+    fun deleteDeviceToken(user: User, request: DeviceTokenDeleteRequest) {
+        // 없는 토큰이나 이미 다른 사용자에게 넘어간 토큰은 지우지 않고 넘어간다. (로그아웃을 막지 않도록 멱등하게 처리)
+        deviceTokenRepository.deleteByDeviceTokenAndOwner(request.deviceToken, user)
     }
 }

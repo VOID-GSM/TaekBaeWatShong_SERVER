@@ -97,7 +97,7 @@ Thin: call one service method, wrap in `ResponseEntity`, return. No business log
 - Constructor injection only.
 - `ResponseEntity.status(HttpStatus.CREATED).body(...)` for creation, `ResponseEntity.ok(...)` otherwise. Never `ResponseEntity<Any>` or a raw `Map`.
 - Base paths are **singular and unprefixed**: `/parcel`, `/auth`. No `/api`, no `/v1`.
-- Verbs: `POST` creates, `GET` reads, `PATCH` mutates. `PUT` and `DELETE` are unused.
+- Verbs: `POST` creates, `GET` reads, `PATCH` mutates, `DELETE` removes (only `DELETE /notification/token` today; it takes a JSON body because the token contains `[` `]`). `PUT` is unused.
 
 ### Services
 
