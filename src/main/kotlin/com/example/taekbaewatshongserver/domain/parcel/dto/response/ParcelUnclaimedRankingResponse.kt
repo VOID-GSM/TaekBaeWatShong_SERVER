@@ -16,8 +16,6 @@ data class ParcelUnclaimedRankingResponse(
         val rank: Int,
         @field:Schema(description = "택배 주인 이름", example = "박서연")
         val ownerName: String,
-        @field:Schema(description = "택배 별칭", example = "겨울 패딩")
-        val alias: String,
         @field:Schema(description = "보관 구역 (구역 미배정이면 null)", example = "C")
         val zone: Zone?,
         @field:Schema(description = "도착 처리 시각. 방치 시간은 이 값으로 계산한다.", example = "2026-11-15T04:48:00")
@@ -32,7 +30,6 @@ data class ParcelUnclaimedRankingResponse(
                 Rank(
                     rank = index + 1,
                     ownerName = parcel.owner.name,
-                    alias = parcel.alias,
                     zone = parcel.zone,
                     arrivedAt = arrivedAt,
                 )

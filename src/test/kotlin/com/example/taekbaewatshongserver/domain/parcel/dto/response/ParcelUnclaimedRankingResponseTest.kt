@@ -50,7 +50,6 @@ class ParcelUnclaimedRankingResponseTest {
 
         assertEquals(listOf(1, 2), response.ranks.map { it.rank })
         assertEquals(listOf("박서연", "김민준"), response.ranks.map { it.ownerName })
-        assertEquals(listOf("겨울 패딩", "문제집 세트"), response.ranks.map { it.alias })
         assertEquals(listOf(Zone.C, null), response.ranks.map { it.zone })
         assertEquals(listOf(first, second), response.ranks.map { it.arrivedAt })
     }
