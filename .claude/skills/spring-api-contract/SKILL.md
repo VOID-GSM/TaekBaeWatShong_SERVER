@@ -51,7 +51,7 @@ Base paths are singular and unprefixed: `/parcel`, `/auth`. No `/api`, no `/v1`.
 | Read one resource | `GET` | `/parcel/{parcelId}` |
 | Mutate existing state | `PATCH` | `/parcel/claim`, `/parcel/{parcelId}/zone` |
 
-`PUT` and `DELETE` are unused in this codebase. If a new endpoint genuinely needs full replacement or deletion semantics, introduce it deliberately and say so in the contract notes — do not reach for `PATCH` to avoid the conversation.
+`PUT` is unused in this codebase. `DELETE` is used for removal (`DELETE /notification/token`, with a JSON body because the token contains `[` and `]`). If a new endpoint genuinely needs full replacement or deletion semantics, introduce it deliberately and say so in the contract notes — do not reach for `PATCH` to avoid the conversation.
 
 Note the two `PATCH` shapes already in use: action-on-collection (`/parcel/complete`, `/parcel/claim`, where the target is identified by a field in the body) and action-on-resource (`/parcel/{parcelId}/zone`). Prefer the path-parameter form for new endpoints — it makes the target explicit and lets `@PreAuthorize` and logging see it. Use the body form only when the natural identifier is a business key that is awkward in a URL, as `invoiceNumber` is.
 

@@ -150,7 +150,7 @@ class ParcelController(
 - `ResponseEntity.status(HttpStatus.CREATED).body(...)` for creation; `ResponseEntity.ok(...)` otherwise.
 - Base paths are **singular and unprefixed**: `/parcel`, `/auth`. Keep it that way for consistency. (`UserController` uses `/api/users/me`, which is the odd one out — do not copy it.)
 - Optional filters: `@RequestParam(required = false) status: ParcelStatus?`. Spring binds the enum by name and returns 400 on an unknown value.
-- HTTP verbs in use: `POST` creates, `GET` reads, `PATCH` mutates existing state (`/complete`, `/claim`, `/{id}/zone`). `PUT` and `DELETE` are not used anywhere.
+- HTTP verbs in use: `POST` creates, `GET` reads, `PATCH` mutates existing state (`/complete`, `/claim`, `/{id}/zone`). `DELETE` removes a resource — currently only `DELETE /notification/token`, which takes a JSON request body because the device token contains `[` and `]`. `PUT` is not used anywhere.
 
 ### The `@AuthenticationPrincipal` type trap
 
