@@ -214,6 +214,25 @@ class ParcelController(
     }
 
     @Operation(
+        summary = "구역별 보관 택배 수 조회",
+        description = """
+            보관 중인(ARRIVED) 택배를 구역별로 세어 개수만 반환한다. 로그인한 사용자면 누구나 호출할 수 있다.
+
+            - 운송장 번호·주인 이름 같은 택배 정보는 포함하지 않는다.
+            - A~F 구역을 항상 순서대로 포함하고, 택배가 없는 구역은 `count: 0`으로 준다.
+            - 구역이 배정되지 않은 택배는 세지 않는다.
+        """,
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "조회 성공"),
+    )
+    @GetMapping("/zone/summary")
+    fun getZoneSummary(): ResponseEntity<ParcelZoneSummaryResponse> {
+        val response = parcelService.getZoneSummary()
+        return ResponseEntity.ok(response)
+    }
+
+    @Operation(
         summary = "보관 구역 배정 (관리자)",
         description = """
             택배의 보관 구역을 배정하거나 다른 구역으로 옮긴다. 택배 상태와 관계없이 변경할 수 있다.
