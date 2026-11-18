@@ -17,6 +17,7 @@ import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.global.exception.ReportException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.ArgumentMatchers
 import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
@@ -27,7 +28,6 @@ import java.util.Optional
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class ReportServiceTest {
@@ -106,19 +106,57 @@ class ReportServiceTest {
         assertEquals(5L, service.getMyReports(student).reports.single().chatRoomId)
     }
 
+    // Mockito 매처는 null을 돌려주므로, Kotlin의 non-null 인자 검사에 걸리지 않게 실제 값을 대신 돌려준다.
+    private fun sameRoom(room: ChatRoom): ChatRoom {
+        ArgumentMatchers.same(room)
+        return room
+    }
+
+    private fun anyTime(): LocalDateTime {
+        ArgumentMatchers.any(LocalDateTime::class.java)
+        return LocalDateTime.MIN
+    }
+
+    private fun givenNewRoom(room: ChatRoom, linkedRows: Int) {
+        `when`(chatService.createOrGetRoom(admin, ChatRoomCreateRequest(partnerId = 1L)))
+            .thenReturn(ChatRoomCreateResult(roomResponseOf(room, admin), created = true))
+        `when`(chatRoomRepository.getReferenceById(room.id)).thenReturn(room)
+        `when`(reportRepository.linkChatRoomIfAbsent(ArgumentMatchers.eq(7L), sameRoom(room), anyTime())).thenReturn(linkedRows)
+    }
+
     @Test
-    fun `채팅을 시작하면 신고자와의 채팅방을 만들고 신고에 연결한다`() {
-        val report = reportOf(student)
+    fun `채팅을 시작하면 신고자와의 채팅방을 만들고 비어 있을 때만 신고에 연결한다`() {
         val room = roomOf(5L, admin, student)
-        val result = ChatRoomCreateResult(roomResponseOf(room, admin), created = true)
-        `when`(reportRepository.findById(7L)).thenReturn(Optional.of(report))
-        `when`(chatService.createOrGetRoom(admin, ChatRoomCreateRequest(partnerId = 1L))).thenReturn(result)
-        `when`(chatRoomRepository.getReferenceById(5L)).thenReturn(room)
+        `when`(reportRepository.findById(7L)).thenReturn(Optional.of(reportOf(student)))
+        givenNewRoom(room, linkedRows = 1)
 
         val actual = service.startChat(admin, 7L)
 
         assertTrue(actual.created)
-        assertSame(room, report.chatRoom)
+        assertEquals(5L, actual.room.id)
+        verify(reportRepository).linkChatRoomIfAbsent(ArgumentMatchers.eq(7L), sameRoom(room), anyTime())
+    }
+
+    @Test
+    fun `동시에 다른 관리자가 먼저 연결했으면 덮어쓰지 않고 409 예외를 던진다`() {
+        val room = roomOf(5L, admin, student)
+        `when`(reportRepository.findById(7L))
+            .thenReturn(Optional.of(reportOf(student)))
+            .thenReturn(Optional.of(reportOf(student, roomOf(6L, otherAdmin, student))))
+        givenNewRoom(room, linkedRows = 0)
+
+        assertThrows<ReportException.ChatAlreadyStarted> { service.startChat(admin, 7L) }
+    }
+
+    @Test
+    fun `동시에 같은 관리자 요청이 먼저 같은 방을 연결했으면 그 방을 반환한다`() {
+        val room = roomOf(5L, admin, student)
+        `when`(reportRepository.findById(7L))
+            .thenReturn(Optional.of(reportOf(student)))
+            .thenReturn(Optional.of(reportOf(student, room)))
+        givenNewRoom(room, linkedRows = 0)
+
+        assertEquals(5L, service.startChat(admin, 7L).room.id)
     }
 
     @Test
