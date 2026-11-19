@@ -61,4 +61,15 @@ interface ParcelRepository : JpaRepository<Parcel, Long> {
         status: ParcelStatus,
         arrivedAt: LocalDateTime,
     ): List<Parcel>
+
+    @Query(
+        """
+        SELECT new com.example.taekbaewatshongserver.domain.parcel.repository.ZoneParcelCount(p.zone, COUNT(p))
+        FROM Parcel p
+        WHERE p.status = :status
+          AND p.zone IS NOT NULL
+        GROUP BY p.zone
+    """,
+    )
+    fun countByStatusGroupByZone(@Param("status") status: ParcelStatus): List<ZoneParcelCount>
 }

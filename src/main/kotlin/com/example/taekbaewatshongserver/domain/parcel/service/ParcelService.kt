@@ -145,6 +145,13 @@ class ParcelService(
         return ParcelUnclaimedRankingResponse.from(parcels)
     }
 
+    fun getZoneSummary(): ParcelZoneSummaryResponse {
+        val counts = parcelRepository.countByStatusGroupByZone(ParcelStatus.ARRIVED)
+            .associate { it.zone to it.count }
+
+        return ParcelZoneSummaryResponse.from(counts)
+    }
+
     @Transactional
     fun assignZone(parcelId: Long, request: ParcelZoneAssignRequest): ParcelZoneAssignResponse {
         val parcel = parcelRepository.findById(parcelId)
