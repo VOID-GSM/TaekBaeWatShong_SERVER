@@ -24,7 +24,7 @@ data class MyReportListResponse(
         val content: String,
         @field:Schema(description = "진행 상태. RECEIVED(접수) / IN_PROGRESS(처리 중) / DONE(완료)", example = "RECEIVED")
         val progress: ReportProgress,
-        @field:Schema(description = "연결된 채팅방 ID (현재는 항상 null)")
+        @field:Schema(description = "관리자가 이 신고로 시작한 1:1 채팅방 ID (시작 전에는 null)", example = "3")
         val chatRoomId: Long? = null,
         @field:Schema(description = "접수 시각", example = "2026-11-09T14:30:00")
         val createdAt: LocalDateTime,
@@ -37,6 +37,7 @@ data class MyReportListResponse(
                 lostEstimatedAt = report.lostEstimatedAt,
                 content = report.content,
                 progress = report.progress,
+                chatRoomId = report.chatRoom?.id,
                 createdAt = report.createdAt,
             )
         }

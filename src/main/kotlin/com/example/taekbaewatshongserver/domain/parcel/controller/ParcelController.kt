@@ -214,6 +214,27 @@ class ParcelController(
     }
 
     @Operation(
+        summary = "방치 택배 TOP 3 조회",
+        description = """
+            도착하고 24시간이 지나도록 찾아가지 않은 택배를 오래된 순으로 최대 3건 조회한다. 로그인한 사용자면 누구나 호출할 수 있다.
+
+            - 조건: ARRIVED(보관 중) 상태이고 `arrivedAt`이 지금으로부터 24시간 이전인 택배
+            - 정렬: `arrivedAt` 오래된 순 (같으면 택배 ID 순)
+            - 방치 시간은 클라이언트가 `arrivedAt`으로 계산한다.
+            - 구역이 배정되지 않은 택배는 `zone: null`로 준다.
+            - 방치된 택배가 없으면 `ranks: []`를 준다.
+        """,
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "조회 성공"),
+    )
+    @GetMapping("/unclaimed/ranking")
+    fun getUnclaimedRanking(): ResponseEntity<ParcelUnclaimedRankingResponse> {
+        val response = parcelService.getUnclaimedRanking()
+        return ResponseEntity.ok(response)
+    }
+
+    @Operation(
         summary = "구역별 보관 택배 수 조회",
         description = """
             보관 중인(ARRIVED) 택배를 구역별로 세어 개수만 반환한다. 로그인한 사용자면 누구나 호출할 수 있다.

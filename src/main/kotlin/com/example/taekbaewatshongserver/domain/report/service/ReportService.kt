@@ -1,5 +1,9 @@
 package com.example.taekbaewatshongserver.domain.report.service
 
+import com.example.taekbaewatshongserver.domain.chat.dto.request.ChatRoomCreateRequest
+import com.example.taekbaewatshongserver.domain.chat.dto.response.ChatRoomCreateResult
+import com.example.taekbaewatshongserver.domain.chat.repository.ChatRoomRepository
+import com.example.taekbaewatshongserver.domain.chat.service.ChatService
 import com.example.taekbaewatshongserver.domain.parcel.repository.ParcelRepository
 import com.example.taekbaewatshongserver.domain.report.dto.request.ReportCreateRequest
 import com.example.taekbaewatshongserver.domain.report.dto.request.ReportProgressUpdateRequest
@@ -13,13 +17,17 @@ import com.example.taekbaewatshongserver.global.exception.ReportException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Isolation
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 
 @Service
 @Transactional(readOnly = true)
 class ReportService(
     private val reportRepository: ReportRepository,
     private val parcelRepository: ParcelRepository,
+    private val chatService: ChatService,
+    private val chatRoomRepository: ChatRoomRepository,
 ) {
 
     @Transactional
@@ -84,5 +92,34 @@ class ReportService(
         report.updateProgress(request.progress)
 
         return ReportProgressResponse.from(report)
+    }
+
+    // ChatService.createOrGetRoom이 이 트랜잭션에 합류하므로, 동시 생성 경합 후 재조회를 위해 같은 격리 수준을 쓴다.
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    fun startChat(admin: User, reportId: Long): ChatRoomCreateResult {
+        val report = reportRepository.findById(reportId)
+            .orElseThrow { ReportException.NotFound() }
+
+        report.chatRoom?.let { linkedRoom ->
+            if (!linkedRoom.contains(admin)) {
+                throw ReportException.ChatAlreadyStarted()
+            }
+            return ChatRoomCreateResult(chatService.getRoom(admin, linkedRoom.id), created = false)
+        }
+
+        val reporterId = requireNotNull(report.reporter.id)
+        val result = chatService.createOrGetRoom(admin, ChatRoomCreateRequest(partnerId = reporterId))
+        val linked = reportRepository.linkChatRoomIfAbsent(reportId, chatRoomRepository.getReferenceById(result.room.id), LocalDateTime.now())
+
+        if (linked == 0) {
+            val linkedRoomId = reportRepository.findById(reportId)
+                .orElseThrow { ReportException.NotFound() }
+                .chatRoom?.id
+            if (linkedRoomId != result.room.id) {
+                throw ReportException.ChatAlreadyStarted()
+            }
+        }
+
+        return result
     }
 }

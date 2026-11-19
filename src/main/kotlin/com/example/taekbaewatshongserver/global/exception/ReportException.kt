@@ -18,4 +18,8 @@ sealed class ReportException(
     class Conflict(
         message: String = "이미 분실 신고된 택배입니다.",
     ) : ReportException(HttpStatus.CONFLICT, message)
+
+    class ChatAlreadyStarted(
+        message: String = "다른 관리자가 이미 채팅을 시작한 분실 신고입니다.",
+    ) : ReportException(HttpStatus.CONFLICT, message)
 }

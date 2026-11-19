@@ -56,6 +56,12 @@ interface ParcelRepository : JpaRepository<Parcel, Long> {
 
     fun existsByInvoiceNumber(invoiceNumber: String): Boolean
 
+    @EntityGraph(attributePaths = ["owner"])
+    fun findTop3ByStatusAndArrivedAtLessThanEqualOrderByArrivedAtAscIdAsc(
+        status: ParcelStatus,
+        arrivedAt: LocalDateTime,
+    ): List<Parcel>
+
     @Query(
         """
         SELECT new com.example.taekbaewatshongserver.domain.parcel.repository.ZoneParcelCount(p.zone, COUNT(p))
