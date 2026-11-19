@@ -67,8 +67,3 @@ interface ParcelRepository : JpaRepository<Parcel, Long> {
     )
     fun countByStatusGroupByZone(@Param("status") status: ParcelStatus): List<ZoneParcelCount>
 }
-
-data class ZoneParcelCount(
-    val zone: Zone,
-    val count: Long,
-)
