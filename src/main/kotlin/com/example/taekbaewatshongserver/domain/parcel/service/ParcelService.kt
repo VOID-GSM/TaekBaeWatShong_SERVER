@@ -134,6 +134,17 @@ class ParcelService(
         return ParcelZoneGroupResponse(zoneGroupDetails)
     }
 
+    fun getUnclaimedRanking(): ParcelUnclaimedRankingResponse {
+        val threshold = LocalDateTime.now().minusHours(UNCLAIMED_THRESHOLD_HOURS)
+
+        val parcels = parcelRepository.findTop3ByStatusAndArrivedAtLessThanEqualOrderByArrivedAtAscIdAsc(
+            status = ParcelStatus.ARRIVED,
+            arrivedAt = threshold,
+        )
+
+        return ParcelUnclaimedRankingResponse.from(parcels)
+    }
+
     @Transactional
     fun assignZone(parcelId: Long, request: ParcelZoneAssignRequest): ParcelZoneAssignResponse {
         val parcel = parcelRepository.findById(parcelId)
@@ -162,5 +173,9 @@ class ParcelService(
         eventPublisher.publishEvent(ParcelClaimedEvent(parcel.id))
 
         return ParcelClaimResponse.from(parcel)
+    }
+
+    companion object {
+        private const val UNCLAIMED_THRESHOLD_HOURS = 24L
     }
 }

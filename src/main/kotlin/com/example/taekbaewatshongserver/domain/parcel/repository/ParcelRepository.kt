@@ -55,4 +55,10 @@ interface ParcelRepository : JpaRepository<Parcel, Long> {
     fun findAllByStatusAndZoneIn(status: ParcelStatus, zones: List<Zone>): List<Parcel>
 
     fun existsByInvoiceNumber(invoiceNumber: String): Boolean
+
+    @EntityGraph(attributePaths = ["owner"])
+    fun findTop3ByStatusAndArrivedAtLessThanEqualOrderByArrivedAtAscIdAsc(
+        status: ParcelStatus,
+        arrivedAt: LocalDateTime,
+    ): List<Parcel>
 }
