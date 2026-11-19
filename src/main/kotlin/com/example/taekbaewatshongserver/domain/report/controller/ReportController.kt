@@ -1,5 +1,6 @@
 package com.example.taekbaewatshongserver.domain.report.controller
 
+import com.example.taekbaewatshongserver.domain.chat.dto.response.ChatRoomResponse
 import com.example.taekbaewatshongserver.domain.report.dto.request.ReportCreateRequest
 import com.example.taekbaewatshongserver.domain.report.dto.request.ReportProgressUpdateRequest
 import com.example.taekbaewatshongserver.domain.report.dto.response.*
@@ -134,7 +135,13 @@ class ReportController(
 
     @Operation(
         summary = "전체 분실 신고 조회 (관리자)",
-        description = "모든 사용자의 분실 신고를 접수 최신순으로 조회한다. `progress`로 진행 상태를 거를 수 있다.",
+        description = """
+            모든 사용자의 분실 신고를 접수 최신순으로 조회한다. `progress`로 진행 상태를 거를 수 있다.
+
+            - `chatRoomId`가 있으면 관리자가 이 신고로 채팅을 시작한 상태(채팅 요청)다. 없으면 `POST /report/{reportId}/chat`으로 시작한다.
+            - `reporterRole`이 TEACHER면 학번(`studentNumber`) 대신 "선생님"으로 표시한다.
+            - `reporterRole`이 STUDENT여도 `studentNumber`가 null일 수 있다. 학번은 DataGSM 로그인과 이메일 가입에서만 채워지므로, Google로 가입한 학생은 학번 없이 이름만 표시한다.
+        """,
     )
     @ApiResponses(
         ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -201,5 +208,62 @@ class ReportController(
     ): ResponseEntity<ReportProgressResponse> {
         val response = reportService.updateProgress(reportId, request)
         return ResponseEntity.ok(response)
+    }
+
+    @Operation(
+        summary = "분실 신고로 1:1 채팅 시작 (관리자)",
+        description = """
+            분실 신고자와의 1:1 채팅방을 열고 신고에 연결한다. 연결된 채팅방 ID는 신고 목록·상세·내 신고의 `chatRoomId`로 내려간다.
+
+            - 신고자와의 채팅방이 이미 있으면 새로 만들지 않고 그 방을 연결한다.
+            - 이미 이 관리자와 연결된 신고면 연결된 방을 그대로 반환한다.
+            - 다른 관리자가 이미 채팅을 시작한 신고면 409를 반환한다.
+        """,
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "201", description = "채팅방을 새로 만들어 연결함"),
+        ApiResponse(responseCode = "200", description = "이미 있던 채팅방을 연결했거나 반환함"),
+        ApiResponse(
+            responseCode = "403",
+            description = "관리자가 아니거나, 신고자와 채팅할 수 없음",
+            content = [
+                Content(
+                    schema = Schema(implementation = ErrorResponse::class),
+                    examples = [ExampleObject(value = """{"message": "해당 상대와는 1:1 채팅을 할 수 없습니다."}""")],
+                ),
+            ],
+        ),
+        ApiResponse(
+            responseCode = "404",
+            description = "존재하지 않는 분실 신고",
+            content = [
+                Content(
+                    schema = Schema(implementation = ErrorResponse::class),
+                    examples = [ExampleObject(value = """{"message": "해당 분실 신고를 찾을 수 없습니다."}""")],
+                ),
+            ],
+        ),
+        ApiResponse(
+            responseCode = "409",
+            description = "다른 관리자가 이미 채팅을 시작한 신고",
+            content = [
+                Content(
+                    schema = Schema(implementation = ErrorResponse::class),
+                    examples = [ExampleObject(value = """{"message": "다른 관리자가 이미 채팅을 시작한 분실 신고입니다."}""")],
+                ),
+            ],
+        ),
+    )
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{reportId}/chat")
+    fun startChat(
+        @AuthenticationPrincipal user: User,
+        @Parameter(description = "분실 신고 ID", example = "1")
+        @PathVariable
+        reportId: Long,
+    ): ResponseEntity<ChatRoomResponse> {
+        val result = reportService.startChat(user, reportId)
+        val status = if (result.created) HttpStatus.CREATED else HttpStatus.OK
+        return ResponseEntity.status(status).body(result.room)
     }
 }

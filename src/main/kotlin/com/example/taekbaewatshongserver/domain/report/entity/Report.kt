@@ -1,5 +1,6 @@
 package com.example.taekbaewatshongserver.domain.report.entity
 
+import com.example.taekbaewatshongserver.domain.chat.entity.ChatRoom
 import com.example.taekbaewatshongserver.domain.parcel.entity.Parcel
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import jakarta.persistence.*
@@ -29,6 +30,10 @@ class Report(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var progress: ReportProgress = ReportProgress.RECEIVED,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "chat_room_id")
+    var chatRoom: ChatRoom? = null,
 
     @Column(nullable = false, updatable = false)
     val createdAt: LocalDateTime = LocalDateTime.now(),
