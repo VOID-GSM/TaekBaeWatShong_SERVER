@@ -87,7 +87,7 @@ class EmailAuthController(
         ),
         ApiResponse(
             responseCode = "401",
-            description = "가입되지 않은 이메일 / 비밀번호 불일치 / 소셜 로그인으로 가입한 계정",
+            description = "가입되지 않은 이메일 / 비밀번호 불일치 / Google·DataGSM으로 가입한 계정",
             content = [Content(schema = Schema(implementation = DefaultErrorResponse::class))],
         ),
     )
@@ -103,6 +103,8 @@ class EmailAuthController(
             관리자(ADMIN) 계정을 만들고 바로 JWT를 발급한다.
 
             - 서버 환경 변수 `ADMIN_EMAILS`에 등록된 이메일만 가입할 수 있다. (대소문자 무시)
+            - 이미 가입된 LOCAL 계정은 기존 비밀번호가 일치하면 ADMIN으로 승격한다. 비밀번호는 변경되지 않는다.
+            - Google·DataGSM 계정은 해당 소셜 로그인 경로를 사용해야 한다.
             - 비밀번호 규칙은 일반 회원가입과 같다.
         """,
     )
@@ -114,13 +116,18 @@ class EmailAuthController(
             content = [Content(schema = Schema(implementation = DefaultErrorResponse::class))],
         ),
         ApiResponse(
+            responseCode = "401",
+            description = "기존 LOCAL 계정의 비밀번호가 일치하지 않음",
+            content = [Content(schema = Schema(implementation = DefaultErrorResponse::class))],
+        ),
+        ApiResponse(
             responseCode = "403",
             description = "관리자 이메일 목록에 없는 이메일",
             content = [Content(schema = Schema(implementation = DefaultErrorResponse::class))],
         ),
         ApiResponse(
             responseCode = "409",
-            description = "이미 가입된 이메일",
+            description = "Google·DataGSM으로 가입한 이메일",
             content = [Content(schema = Schema(implementation = DefaultErrorResponse::class))],
         ),
     )
@@ -137,9 +144,10 @@ class EmailAuthController(
     @Operation(
         summary = "관리자 로그인",
         description = """
-            관리자 앱용 로그인. 이메일·비밀번호가 맞아도 관리자(ADMIN) 계정이 아니면 거절한다.
+            관리자 앱용 이메일 로그인. 이메일·비밀번호가 맞고 `ADMIN_EMAILS`에 등록된 기존 LOCAL 계정은 ADMIN으로 승격한다.
 
-            - 이메일 회원가입으로 만든 계정만 로그인할 수 있다.
+            - 기존 ADMIN은 기존처럼 로그인할 수 있다.
+            - Google·DataGSM 계정은 이메일 로그인을 사용할 수 없으며, 해당 소셜 로그인 경로를 사용해야 한다.
         """,
     )
     @ApiResponses(
@@ -156,7 +164,7 @@ class EmailAuthController(
         ),
         ApiResponse(
             responseCode = "403",
-            description = "관리자 계정이 아님",
+            description = "관리자 이메일 목록에 없고 ADMIN도 아닌 계정",
             content = [Content(schema = Schema(implementation = DefaultErrorResponse::class))],
         ),
     )
