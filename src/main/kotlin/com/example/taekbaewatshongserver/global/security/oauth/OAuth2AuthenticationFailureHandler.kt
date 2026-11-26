@@ -30,9 +30,12 @@ class OAuth2AuthenticationFailureHandler(
             removeAttribute(AuthController.ADMIN_INVITE_CODE_SESSION_KEY)
         }
 
+        // 한글·중괄호가 인코딩되지 않으면 Tomcat이 Location 헤더를 버려 앱이 흰 화면에 멈춘다.
+        // encode().build()는 템플릿 인코딩이라 중괄호를 URI 변수로 보고 남기므로 build().encode() 순서를 지킨다.
         val targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
             .queryParam("error", exception.localizedMessage)
             .build()
+            .encode()
             .toUriString()
 
         redirectStrategy.sendRedirect(request, response, targetUrl)
