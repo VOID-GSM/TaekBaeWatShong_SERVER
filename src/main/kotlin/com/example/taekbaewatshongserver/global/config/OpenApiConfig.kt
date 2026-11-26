@@ -55,6 +55,7 @@ class OpenApiConfig {
                     "1:1 채팅 API. 택배기사(ADMIN) ↔ 학생/선생님은 항상 가능하고, 학생 ↔ 선생님은 양쪽 모두 DataGSM 계정일 때만 가능하다.",
                 ),
                 Tag().name(ApiTags.DRIVER_QR).description("택배기사 QR 발급·스캔 API. 모두 관리자(ADMIN) 전용."),
+                Tag().name(ApiTags.ADMIN_INVITE).description("관리자 초대 코드 발급 API. 관리자(ADMIN) 전용. 코드 하나를 발급할 때 정한 인원(기본 1명, 최대 20명)까지 쓸 수 있고, 24시간 뒤 만료된다."),
             ),
         )
 
@@ -96,7 +97,7 @@ class OpenApiConfig {
             ## 에러 응답
             에러 응답 본문은 두 가지 형식이 있습니다.
 
-            - **`ErrorResponse`** `{ "message": "..." }`: 택배·분실 신고·알림·채팅·QR API의 비즈니스 에러와 요청 값 검증 실패
+            - **`ErrorResponse`** `{ "message": "..." }`: 택배·분실 신고·알림·채팅·QR API의 비즈니스 에러와 요청 값 검증 실패, 관리자 초대 코드 오류
             - **`DefaultErrorResponse`** `{ "timestamp", "status", "error", "path" }`: Spring 기본 에러. 권한 부족(403), 이메일 인증 API의 검증 실패, 잘못된 JSON·enum 값 등. 이 형식에는 에러 사유 문구가 담기지 않습니다.
 
             ## 토큰이 없거나 만료된 경우
@@ -119,4 +120,5 @@ object ApiTags {
     const val NOTIFICATION = "Notification"
     const val CHAT = "Chat"
     const val DRIVER_QR = "Driver QR"
+    const val ADMIN_INVITE = "Admin Invite Code"
 }
