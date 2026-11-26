@@ -34,17 +34,21 @@ Built by **VOID** (`VOID-GSM`).
 | Security | Spring Security + OAuth2 client (Google) + JJWT 0.12.6 |
 | Build | Gradle Kotlin DSL, `./gradlew` |
 
-**Not on the classpath — do not use:** bean validation (`jakarta.validation`, `@Valid`, `@NotBlank`), springdoc/Swagger, H2, Testcontainers, ktlint/detekt/spotless. Propose adding one rather than writing code that silently does nothing.
+**On the classpath:** ktlint (`org.jlleitschuh.gradle.ktlint` 14.2.0 — CI runs `ktlintCheck` as its first step and fails the build on any violation), springdoc-openapi 2.5.0 (controllers and DTOs carry `@Operation` / `@Schema` docs — keep them in sync when behavior changes), `spring-boot-starter-validation` (used with `@Valid` on some request DTOs), and a `GlobalExceptionHandler` (`@RestControllerAdvice`, see Exceptions below).
+
+**Not on the classpath — do not use:** H2, Testcontainers, detekt, spotless. Propose adding one rather than writing code that silently does nothing.
 
 ## Verification
 
 ```bash
+./gradlew ktlintCheck     # style check — CI runs this first; run it before every push
+./gradlew ktlintFormat    # auto-fix ktlint violations
 ./gradlew compileKotlin   # fast type check
-./gradlew test            # boots the Spring context
+./gradlew test            # unit tests + contextLoads (boots the Spring context)
 ./gradlew build           # compile + test
 ```
 
-**A green build proves very little here.** The only test is `TaekBaeWatShongServerApplicationTests.contextLoads()`, and it boots the full context, so it needs a reachable MySQL plus `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` (≥32 bytes), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+**A green build proves less than it looks.** Most tests are Mockito unit tests with no database. `TaekBaeWatShongServerApplicationTests.contextLoads()` is the only one that boots the full context, so it needs a reachable MySQL plus `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` (≥32 bytes), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`. CI provides MySQL 8.0, so `contextLoads` runs there even when it cannot run locally.
 
 - If those are missing, the build fails for reasons unrelated to your change. Report that as **"could not verify"** — never as a code failure, never as a pass.
 - Never report `compileKotlin` success as "tests pass".
@@ -75,7 +79,7 @@ Aggregates today: `parcel`, `user`. **Follow `parcel`** — it splits DTOs into 
 
 Plain `class` (not `data class` — `allOpen` handles JPA), mutable, with behavior methods.
 
-- **`val` for immutable facts** (id, invoice number, owner, createdAt), `var` only for genuinely mutable state. With no validation layer, this is the main invariant mechanism.
+- **`val` for immutable facts** (id, invoice number, owner, createdAt), `var` only for genuinely mutable state. Bean validation covers only request DTOs bound with `@Valid`, so for entities this is the main invariant mechanism.
 - **Every `@ManyToOne` is `FetchType.LAZY`.** JPA defaults to EAGER, which silently causes N+1.
 - **Enums persist as `EnumType.STRING`,** never ordinal.
 - **State changes go through named entity methods** — `markAsArrived()`, `markAsClaimed()` — each setting the status *and* its paired timestamp together. Never assign `entity.status = ...` from a service; that is how a status and its timestamp drift apart with nothing to catch it.
@@ -117,9 +121,9 @@ class ParcelService(...) {
 
 ### Exceptions
 
-One sealed class per aggregate in `global/exception/`, subclasses nested, each with a `@ResponseStatus` **and** a matching `status` argument.
+One sealed class per aggregate in `global/exception/`, subclasses nested, each passing its `HttpStatus` as the `status` constructor argument (no `@ResponseStatus`).
 
-**There is no `@RestControllerAdvice` in this project, so the thrown type *is* the HTTP status.** A bare `RuntimeException`, `IllegalArgumentException`, or `IllegalStateException` from a service is a 500. Use `AccessDeniedException` for ownership failures (403).
+**`GlobalExceptionHandler` (`@RestControllerAdvice`) turns each sealed parent into `e.status` with an `ErrorResponse` body (`{ "message": "..." }`). A new sealed exception must be registered there, or it surfaces as a 500.** A bare `RuntimeException`, `IllegalArgumentException`, or `IllegalStateException` from a service is a 500. Use `AccessDeniedException` for ownership failures (403). `ResponseStatusException` (used in the auth code) bypasses the handler and returns Spring's default error body without the reason text.
 
 ### Repositories
 
