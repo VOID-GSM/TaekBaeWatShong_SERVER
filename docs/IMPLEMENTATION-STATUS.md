@@ -48,7 +48,7 @@ Everything currently implemented:
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Google OAuth login, admin allowlist | **DONE** | gated by `app.admin.emails` |
+| Google OAuth login, admin invite code | **DONE** | gated by DB role + 초대 코드 (`POST /admin/invite-codes`, 발급 시 정한 인원(기본 1명, 최대 20명)까지 사용, 24시간 뒤 만료). 첫 관리자는 `app.admin.bootstrap-email` 고정값, 소셜 로그인에만 적용 |
 | All-parcel list split by state | **DONE** | `GET /parcel?status=` |
 | — arrived: invoice, orderer, arrival time | **DONE** | `ParcelResponse` carries `ownerName` |
 | — not arrived: invoice, orderer | **DONE** | |
