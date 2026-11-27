@@ -6,6 +6,7 @@ import com.example.taekbaewatshongserver.domain.user.entity.Role
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.exception.AdminInviteCodeException
+import com.example.taekbaewatshongserver.global.security.AdminBootstrap
 import com.example.taekbaewatshongserver.global.security.UserPrincipal
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
@@ -60,7 +61,7 @@ class CustomOAuth2UserServiceTest {
     private val service = CustomOAuth2UserService(
         userRepository = userRepository,
         adminInviteCodeService = adminInviteCodeService,
-        bootstrapEmail = " TeamVoid0107@Gmail.com ",
+        adminBootstrap = AdminBootstrap(" TeamVoid0107@Gmail.com "),
     )
 
     @AfterEach

@@ -6,9 +6,9 @@ import com.example.taekbaewatshongserver.domain.user.entity.Role
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.exception.AdminInviteCodeException
+import com.example.taekbaewatshongserver.global.security.AdminBootstrap
 import com.example.taekbaewatshongserver.global.security.UserPrincipal
 import jakarta.servlet.http.HttpSession
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException
@@ -22,10 +22,8 @@ import org.springframework.web.context.request.ServletRequestAttributes
 class CustomOAuth2UserService(
     private val userRepository: UserRepository,
     private val adminInviteCodeService: AdminInviteCodeService,
-    @Value("\${app.admin.bootstrap-email}") bootstrapEmail: String,
+    private val adminBootstrap: AdminBootstrap,
 ) : DefaultOAuth2UserService() {
-
-    private val bootstrapEmail = bootstrapEmail.trim().lowercase()
 
     override fun loadUser(userRequest: OAuth2UserRequest): OAuth2User {
         val session = currentSession()
@@ -85,7 +83,7 @@ class CustomOAuth2UserService(
             return userRepository.save(existing)
         }
 
-        if (isBootstrapEmail(userInfo.email)) {
+        if (adminBootstrap.isBootstrapEmail(userInfo.email)) {
             rejectLocalAccount(existing)
             if (existing != null) {
                 applyUserInfo(existing, userInfo)
@@ -127,8 +125,6 @@ class CustomOAuth2UserService(
         providerId = userInfo.id,
         role = Role.ADMIN,
     )
-
-    private fun isBootstrapEmail(email: String) = bootstrapEmail.isNotEmpty() && email.trim().lowercase() == bootstrapEmail
 
     private fun resolveSignupRole(session: HttpSession, userInfo: OAuth2UserInfo): Role {
         val requestedRoleName = session.getAttribute(AuthController.SIGNUP_ROLE_SESSION_KEY) as String?
