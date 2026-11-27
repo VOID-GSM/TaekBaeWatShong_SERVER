@@ -1,8 +1,10 @@
 package com.example.taekbaewatshongserver.global.security.oauth
 
+import com.example.taekbaewatshongserver.domain.admin.service.AdminInviteCodeService
 import com.example.taekbaewatshongserver.domain.user.dto.TokenResponse
 import com.example.taekbaewatshongserver.domain.user.entity.Role
 import com.example.taekbaewatshongserver.global.config.ApiTags
+import com.example.taekbaewatshongserver.global.exception.AdminInviteCodeException
 import com.example.taekbaewatshongserver.global.exception.DefaultErrorResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -15,17 +17,21 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirements
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
+import org.springframework.web.util.UriComponentsBuilder
 
 @Tag(name = ApiTags.OAUTH)
 @SecurityRequirements
 @RestController
 class AuthController(
     private val oneTimeAuthCodeStore: OneTimeAuthCodeStore,
+    private val adminInviteCodeService: AdminInviteCodeService,
+    @Value("\${app.oauth2.admin-redirect-uri}") private val adminRedirectUri: String,
 ) {
 
     @Operation(
@@ -77,6 +83,7 @@ class AuthController(
         if (normalizedProvider != PROVIDER_DATAGSM && (role != Role.STUDENT && role != Role.TEACHER)) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "role은 STUDENT 또는 TEACHER만 선택할 수 있습니다")
         }
+        request.session.removeAttribute(ADMIN_INVITE_CODE_SESSION_KEY)
         request.session.setAttribute(LOGIN_TYPE_SESSION_KEY, LoginType.CLIENT.name)
         if (role == Role.STUDENT || role == Role.TEACHER) {
             request.session.setAttribute(SIGNUP_ROLE_SESSION_KEY, role.name)
@@ -89,14 +96,29 @@ class AuthController(
         description = """
             관리자 앱용 소셜 로그인 시작 주소. 흐름은 `GET /auth/login`과 같다.
 
-            - 서버 환경 변수 `ADMIN_EMAILS`에 등록된 이메일 계정만 관리자로 로그인된다.
-            - 성공·실패 모두 관리자 앱의 리다이렉트 주소(`ADMIN_OAUTH2_REDIRECT_URI`)로 이동한다.
+            **관리자 판정 규칙** (소셜 로그인 콜백에서 위에서부터 처음 맞는 규칙 하나만 적용)
+            1. 이미 `ADMIN`인 계정 → 통과. `inviteCode`를 보냈어도 코드는 사용 처리되지 않는다.
+            2. 부트스트랩 관리자 이메일(첫 관리자용 고정값)이고 **DB에 관리자가 한 명도 없음** → `ADMIN`으로 승격하고 통과. 관리자가 한 명이라도 있으면 이 규칙은 건너뛰고 3·4번으로 간다.
+            3. 유효한 `inviteCode`를 보냄 → 계정을 `ADMIN`으로 만들거나 승격하고 코드를 사용 처리한다.
+            4. 그 외 → `?error=관리자 계정이 아닙니다`
+
+            2번이 적용될 때나 3번에서, 같은 이메일로 **이메일·비밀번호 가입(LOCAL)한 계정**이 이미 있으면 승격하지 않고 `?error=이메일로 가입한 계정은 소셜 로그인으로 관리자 등록을 할 수 없습니다. …`로 실패한다. 초대 코드는 사용 처리되지 않는다. 이 경우 `POST /auth/email/admin/signup`에 초대 코드를 넣어 등록한다.
+
+            **초대 코드**
+            - 초대 코드는 첫 관리자(부트스트랩 이메일) 계정만 `POST /admin/invite-codes`로 발급할 수 있다.
+            - 처음 관리자로 등록할 때만 보낸다. 등록된 뒤에는 코드 없이 로그인한다.
+            - 코드 하나는 발급 시 정한 인원(기본 1명, 최대 20명)까지 사용할 수 있고, 24시간 뒤 만료된다.
+            - 시작 단계에서 코드 형식이 틀렸거나, 없거나, 사용 인원이 다 찼거나, 만료됐으면 소셜 로그인 화면으로 가지 않고 바로 관리자 앱 주소로 `?error={사유}`가 붙어 이동한다.
+            - 소셜 로그인 중에 다른 사람이 남은 자리를 먼저 써 버리면 콜백에서 다시 확인해 `?error=`로 실패한다.
+
+            성공·실패 모두 관리자 앱의 리다이렉트 주소(`ADMIN_OAUTH2_REDIRECT_URI`)로 이동한다.
         """,
     )
     @ApiResponses(
         ApiResponse(
             responseCode = "302",
-            description = "소셜 로그인 화면(`/oauth2/authorization/{provider}`)으로 리다이렉트",
+            description = "소셜 로그인 화면(`/oauth2/authorization/{provider}`)으로 리다이렉트. " +
+                "`inviteCode` 확인에 실패하면 관리자 앱 주소(`ADMIN_OAUTH2_REDIRECT_URI`)에 `?error={사유}`를 붙여 리다이렉트",
             headers = [Header(name = "Location", description = "이동할 주소", schema = Schema(type = "string", example = "/oauth2/authorization/google"))],
             content = [Content()],
         ),
@@ -114,11 +136,36 @@ class AuthController(
         )
         @RequestParam(defaultValue = PROVIDER_GOOGLE)
         provider: String,
+        @Parameter(description = "관리자 초대 코드. 처음 관리자로 등록할 때만 보낸다. 하이픈·공백·대소문자는 무시한다.", example = "K7Q2-M9XA")
+        @RequestParam(required = false)
+        inviteCode: String?,
         request: HttpServletRequest,
         response: HttpServletResponse,
     ) {
         val normalizedProvider = validateProvider(provider)
+        // 지난 시도에서 남은 코드가 이번 로그인에 섞이지 않도록 항상 먼저 지운다.
+        request.session.removeAttribute(ADMIN_INVITE_CODE_SESSION_KEY)
+
+        val normalizedInviteCode = if (inviteCode.isNullOrBlank()) {
+            null
+        } else {
+            try {
+                adminInviteCodeService.validate(inviteCode)
+            } catch (e: AdminInviteCodeException) {
+                val targetUrl = UriComponentsBuilder.fromUriString(adminRedirectUri)
+                    .queryParam("error", e.message)
+                    .build()
+                    .encode()
+                    .toUriString()
+                response.sendRedirect(targetUrl)
+                return
+            }
+        }
+
         request.session.setAttribute(LOGIN_TYPE_SESSION_KEY, LoginType.ADMIN.name)
+        if (normalizedInviteCode != null) {
+            request.session.setAttribute(ADMIN_INVITE_CODE_SESSION_KEY, normalizedInviteCode)
+        }
         response.sendRedirect("/oauth2/authorization/$normalizedProvider")
     }
 
@@ -170,6 +217,7 @@ class AuthController(
     companion object {
         const val SIGNUP_ROLE_SESSION_KEY = "signup_role"
         const val LOGIN_TYPE_SESSION_KEY = "login_type"
+        const val ADMIN_INVITE_CODE_SESSION_KEY = "admin_invite_code"
         const val PROVIDER_GOOGLE = "google"
         const val PROVIDER_DATAGSM = "datagsm"
     }

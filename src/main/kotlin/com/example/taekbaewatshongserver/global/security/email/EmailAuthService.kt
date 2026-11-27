@@ -1,5 +1,6 @@
 package com.example.taekbaewatshongserver.global.security.email
 
+import com.example.taekbaewatshongserver.domain.admin.service.AdminInviteCodeService
 import com.example.taekbaewatshongserver.domain.user.dto.AdminSignUpRequest
 import com.example.taekbaewatshongserver.domain.user.dto.EmailLoginRequest
 import com.example.taekbaewatshongserver.domain.user.dto.SignUpRequest
@@ -9,7 +10,6 @@ import com.example.taekbaewatshongserver.domain.user.entity.Role
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.security.jwt.JwtTokenProvider
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -23,10 +23,8 @@ class EmailAuthService(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenProvider: JwtTokenProvider,
-    @Value("#{'\${app.admin.emails:}'.split(',')}") adminEmails: List<String>,
+    private val adminInviteCodeService: AdminInviteCodeService,
 ) {
-
-    private val adminEmails: Set<String> = adminEmails.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
 
     @Transactional
     fun signUp(request: SignUpRequest): TokenResponse {
@@ -44,28 +42,47 @@ class EmailAuthService(
 
     @Transactional
     fun adminSignUp(request: AdminSignUpRequest): TokenResponse {
-        if (request.email.lowercase() !in adminEmails) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "\uAD00\uB9AC\uC790 \uACC4\uC815\uC774 \uC544\uB2D9\uB2C8\uB2E4")
-        }
+        val inviteCode = request.inviteCode?.takeIf { it.isNotBlank() }
 
         val existing = userRepository.findByEmail(request.email)
         if (existing != null) {
             if (existing.provider != AuthProvider.LOCAL || existing.password == null) {
-                throw ResponseStatusException(HttpStatus.CONFLICT, "\uC18C\uC15C \uB85C\uADF8\uC778\uC73C\uB85C \uAC00\uC785\uB41C \uACC4\uC815\uC740 \uD574\uB2F9 \uC18C\uC15C \uB85C\uADF8\uC778\uC73C\uB85C \uAD00\uB9AC\uC790 \uB85C\uADF8\uC778\uC744 \uD574\uC8FC\uC138\uC694")
+                throw ResponseStatusException(HttpStatus.CONFLICT, "소셜 로그인으로 가입된 계정은 해당 소셜 로그인으로 관리자 로그인을 해주세요")
             }
             if (!passwordEncoder.matches(request.password, existing.password)) {
-                throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "\uC774\uBA54\uC77C \uB610\uB294 \uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4")
+                throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다")
             }
-            existing.role = Role.ADMIN
-            return TokenResponse(jwtTokenProvider.createToken(requireNotNull(existing.id), existing.email))
+            val admin = when {
+                existing.role == Role.ADMIN -> existing
+                inviteCode != null -> adminInviteCodeService.consume(inviteCode, existing)
+                else -> throw ResponseStatusException(HttpStatus.FORBIDDEN, "관리자 계정이 아닙니다")
+            }
+            return TokenResponse(jwtTokenProvider.createToken(requireNotNull(admin.id), admin.email))
         }
 
-        return createLocalUser(email = request.email, password = request.password, name = request.name, role = Role.ADMIN)
+        if (inviteCode == null) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "관리자 계정이 아닙니다")
+        }
+
+        val admin = try {
+            adminInviteCodeService.consume(
+                inviteCode,
+                User(
+                    email = request.email,
+                    name = request.name,
+                    provider = AuthProvider.LOCAL,
+                    password = passwordEncoder.encode(request.password),
+                    role = Role.ADMIN,
+                ),
+            )
+        } catch (e: DataIntegrityViolationException) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "이미 가입된 이메일입니다")
+        }
+        return TokenResponse(jwtTokenProvider.createToken(requireNotNull(admin.id), admin.email))
     }
 
     fun login(request: EmailLoginRequest): TokenResponse = authenticate(request.email, request.password, requiredRole = null)
 
-    @Transactional
     fun adminLogin(request: EmailLoginRequest): TokenResponse = authenticate(request.email, request.password, requiredRole = Role.ADMIN)
 
     private fun createLocalUser(
@@ -114,10 +131,7 @@ class EmailAuthService(
         }
 
         if (requiredRole == Role.ADMIN && user.role != Role.ADMIN) {
-            if (email.lowercase() !in adminEmails) {
-                throw ResponseStatusException(HttpStatus.FORBIDDEN, "\uAD00\uB9AC\uC790 \uACC4\uC815\uC774 \uC544\uB2D9\uB2C8\uB2E4")
-            }
-            user.role = Role.ADMIN
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "관리자 계정이 아닙니다")
         }
         return TokenResponse(jwtTokenProvider.createToken(requireNotNull(user.id), user.email))
     }

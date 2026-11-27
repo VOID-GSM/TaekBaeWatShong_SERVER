@@ -10,13 +10,13 @@
 |---|---|---|
 | 학생 (`STUDENT`) | Google, DataGSM | 택배를 등록하고, 내 택배를 조회·수령하고, 분실 신고를 합니다. |
 | 선생님 (`TEACHER`) | Google, DataGSM | 학생과 같은 기능을 사용합니다. |
-| 관리자 (`ADMIN`) | Google (허용된 이메일만) | 학생생활안전부 선생님, 학생회 학생생활안전부 학생, VOID 팀, 택배 기사님이 사용합니다. 전체 택배 관리, 도착 스캔, 구역 배정, 분실 신고 처리, 택배기사 QR을 담당합니다. |
+| 관리자 (`ADMIN`) | Google, DataGSM, 이메일 (초대 코드로 등록) | 학생생활안전부 선생님, 학생회 학생생활안전부 학생, VOID 팀, 택배 기사님이 사용합니다. 전체 택배 관리, 도착 스캔, 구역 배정, 분실 신고 처리, 택배기사 QR을 담당합니다. |
 
 이메일·비밀번호 로그인(`/auth/email/**`)도 함께 제공합니다.
 
 ## 주요 기능
 
-- **인증**: Google·DataGSM OAuth 로그인을 제공합니다. 로그인 후 일회용 코드를 JWT로 교환합니다. 사용자 앱과 관리자 앱은 리다이렉트 주소가 따로 있고, 관리자는 이메일 허용 목록으로 판별합니다.
+- **인증**: Google·DataGSM OAuth 로그인을 제공합니다. 로그인 후 일회용 코드를 JWT로 교환합니다. 사용자 앱과 관리자 앱은 리다이렉트 주소가 따로 있고, 관리자는 DB의 역할(`ADMIN`)로 판별합니다. 처음 관리자로 등록할 때는 첫 관리자 계정이 발급한 초대 코드가 필요합니다. 코드 하나는 발급 시 정한 인원(기본 1명, 최대 20명)까지 사용할 수 있고, 24시간 뒤 만료됩니다.
 - **택배 등록**: 운송장 번호, 택배사, 상품명(선택)을 입력해 등록합니다. 운송장은 Apick 배송 조회 API로 검증합니다.
 - **택배 조회**: 내 택배 목록을 볼 수 있고, 관리자는 전체 택배를 상태별로 조회합니다. 수령한 택배는 수령 후 3일 동안만 목록에 나타납니다.
 - **도착 처리**: 관리자 앱에서 바코드 스캐너로 운송장을 찍으면 택배가 도착 처리되고 보관 구역이 지정됩니다.
@@ -82,10 +82,22 @@ com.example.taekbaewatshongserver
 | `OAUTH2_REDIRECT_URI` | `http://localhost:3000/oauth2/redirect` | 사용자 앱 로그인 후 리다이렉트 주소 |
 | `ADMIN_OAUTH2_REDIRECT_URI` | `http://localhost:3001/oauth2/redirect` | 관리자 앱 로그인 후 리다이렉트 주소 |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:3001` | CORS·WebSocket 허용 Origin (쉼표로 구분) |
-| `ADMIN_EMAILS` | (비어 있음) | 관리자로 인정할 이메일 목록 (쉼표로 구분) |
 | `APICK_API_KEY` | (비어 있음) | Apick 배송 조회 API 키. **비어 있으면 운송장 검증을 건너뛰고 모든 운송장을 통과시킵니다.** |
 | `UNCLAIMED_REMINDER_CRON` | `0 0 8 * * *` | 미수령 재알림 실행 시각 (매일 오전 8시) |
 | `UNCLAIMED_REMINDER_DAYS` | `1,3,5` | 도착 후 며칠째에 재알림을 보낼지 |
+
+관리자 허용 목록 환경 변수(`ADMIN_EMAILS`)는 없어졌습니다. 첫 관리자는 `application.yml`의 `app.admin.bootstrap-email` 고정값(`teamvoid0107@gmail.com`)으로 Google·DataGSM 관리자 로그인을 해서 등록합니다. 이 이메일은 **DB에 관리자가 한 명도 없을 때만** 관리자로 인정되고, 이메일·비밀번호 가입에는 적용되지 않습니다. 이후 관리자는 초대 코드로 등록하며, 초대 코드(`POST /admin/invite-codes`)는 **첫 관리자 계정만** 발급할 수 있습니다.
+
+> **배포 전 확인:** 운영 DB에 이미 관리자가 있는데 그중에 첫 관리자 계정(`teamvoid0107@gmail.com`)이 없으면, 부트스트랩도 적용되지 않고 초대 코드를 발급할 사람도 없습니다. 첫 관리자 계정이 강등되거나 삭제된 경우도 같습니다. 이때는 그 계정을 수동 SQL로 관리자로 만들어야 합니다.
+>
+> 1. 계정이 아직 없으면 **사용자 앱 로그인**으로 먼저 만듭니다. 예: `/auth/login?provider=google&role=TEACHER` 또는 `/auth/login?provider=datagsm`. 관리자 앱(`/auth/admin/login`)으로 로그인하면, 관리자가 이미 있으므로 `not_admin`으로 끝나고 계정도 생기지 않습니다.
+> 2. 아래 SQL을 실행하고, **변경된 행이 1개인지** 확인합니다. 0개라면 계정이 없거나 LOCAL 계정입니다.
+>
+> ```sql
+> UPDATE users SET role = 'ADMIN' WHERE LOWER(email) = 'teamvoid0107@gmail.com' AND provider <> 'LOCAL';
+> ```
+>
+> 같은 이메일의 `provider = 'LOCAL'` 계정은 승격하지 마세요. 이메일 가입은 소유를 확인하지 않으므로, 그 계정의 비밀번호를 아는 사람이 관리자가 됩니다.
 
 ### 설치 및 실행
 

@@ -34,4 +34,8 @@ class GlobalExceptionHandler {
     @ExceptionHandler(ChatException::class)
     fun handleChatException(e: ChatException): ResponseEntity<Map<String, String>> = ResponseEntity.status(e.status)
         .body(mapOf("message" to (e.message ?: "알 수 없는 오류가 발생했습니다.")))
+
+    @ExceptionHandler(AdminInviteCodeException::class)
+    fun handleAdminInviteCodeException(e: AdminInviteCodeException): ResponseEntity<Map<String, String>> = ResponseEntity.status(e.status)
+        .body(mapOf("message" to (e.message ?: "알 수 없는 오류가 발생했습니다.")))
 }
