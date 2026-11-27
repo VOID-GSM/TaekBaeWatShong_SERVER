@@ -18,4 +18,8 @@ sealed class AdminInviteCodeException(
     class InvalidMaxUses(
         message: String = "초대 인원은 1명 이상 20명 이하로 지정해주세요.",
     ) : AdminInviteCodeException(HttpStatus.BAD_REQUEST, message)
+
+    class IssuerNotAllowed(
+        message: String = "초대 코드는 첫 관리자 계정만 발급할 수 있습니다.",
+    ) : AdminInviteCodeException(HttpStatus.FORBIDDEN, message)
 }
