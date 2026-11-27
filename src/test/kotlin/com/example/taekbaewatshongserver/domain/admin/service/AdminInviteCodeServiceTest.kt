@@ -22,6 +22,7 @@ import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -33,7 +34,15 @@ class AdminInviteCodeServiceTest {
     private val adminInviteCodeRepository: AdminInviteCodeRepository = mock(AdminInviteCodeRepository::class.java)
     private val adminInviteCodeUsageRepository: AdminInviteCodeUsageRepository = mock(AdminInviteCodeUsageRepository::class.java)
     private val userRepository: UserRepository = mock(UserRepository::class.java)
-    private val service = AdminInviteCodeService(adminInviteCodeRepository, adminInviteCodeUsageRepository, userRepository)
+    private val hashSecret = "test-invite-code-hmac-secret-0123456789abcdef"
+    private val service = serviceWith(hashSecret)
+
+    private fun serviceWith(secret: String) = AdminInviteCodeService(
+        adminInviteCodeRepository,
+        adminInviteCodeUsageRepository,
+        userRepository,
+        secret,
+    )
 
     private val code = "K7Q2M9XA"
     private val codeHash = service.hash(code)
@@ -92,8 +101,17 @@ class AdminInviteCodeServiceTest {
     }
 
     @Test
-    fun `해시는 정규화 문자열의 SHA-256 소문자 hex다`() {
-        assertEquals("9ac2197d9258257b1ae8463e4214e4cd0a578bc1517f2415928b91be4283fc48", service.hash("ABCDEFGH"))
+    fun `해시는 jwt secret을 키로 쓴 HMAC-SHA256 소문자 hex다`() {
+        assertEquals("4afe00e228f7140550f05953cbc716e00a4bc07e39f97642c0327ba21258e30d", service.hash("ABCDEFGH"))
+        assertEquals(service.hash("ABCDEFGH"), serviceWith(hashSecret).hash("ABCDEFGH"))
+    }
+
+    @Test
+    fun `키가 다르면 해시가 달라지고 키 없는 SHA-256과도 다르다`() {
+        val plainSha256 = "9ac2197d9258257b1ae8463e4214e4cd0a578bc1517f2415928b91be4283fc48"
+
+        assertNotEquals(service.hash("ABCDEFGH"), serviceWith("another-invite-code-hmac-secret-9876543210zyx").hash("ABCDEFGH"))
+        assertNotEquals(plainSha256, service.hash("ABCDEFGH"))
     }
 
     @Test
