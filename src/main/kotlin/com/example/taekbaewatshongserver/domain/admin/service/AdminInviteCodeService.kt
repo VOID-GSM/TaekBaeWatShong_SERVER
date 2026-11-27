@@ -9,14 +9,16 @@ import com.example.taekbaewatshongserver.domain.user.entity.Role
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.exception.AdminInviteCodeException
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.HexFormat
 import java.util.Locale
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 
 @Service
 @Transactional(readOnly = true)
@@ -24,9 +26,12 @@ class AdminInviteCodeService(
     private val adminInviteCodeRepository: AdminInviteCodeRepository,
     private val adminInviteCodeUsageRepository: AdminInviteCodeUsageRepository,
     private val userRepository: UserRepository,
+    @Value("\${jwt.secret}") hashSecret: String,
 ) {
 
     private val secureRandom = SecureRandom()
+
+    private val hashKey = SecretKeySpec(hashSecret.toByteArray(Charsets.UTF_8), HASH_ALGORITHM)
 
     @Transactional
     fun issue(issuer: User, maxUses: Int): AdminInviteCodeIssueResponse {
@@ -79,7 +84,11 @@ class AdminInviteCodeService(
 
     internal fun normalize(raw: String): String = raw.filterNot { it == '-' || it.isWhitespace() }.uppercase(Locale.ROOT)
 
-    internal fun hash(normalized: String): String = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(normalized.toByteArray(Charsets.UTF_8)))
+    // Mac은 스레드 안전하지 않으므로 호출마다 새로 만든다. 키는 생성자에서 한 번만 만든다.
+    internal fun hash(normalized: String): String {
+        val mac = Mac.getInstance(HASH_ALGORITHM).apply { init(hashKey) }
+        return HexFormat.of().formatHex(mac.doFinal(normalized.toByteArray(Charsets.UTF_8)))
+    }
 
     internal fun generateCode(): String {
         val raw = String(CharArray(CODE_LENGTH) { ALPHABET[secureRandom.nextInt(ALPHABET.length)] })
@@ -102,6 +111,7 @@ class AdminInviteCodeService(
         const val ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         const val CODE_LENGTH = 8
         private const val DISPLAY_GROUP_SIZE = 4
+        private const val HASH_ALGORITHM = "HmacSHA256"
         private val CODE_PATTERN = Regex("^[$ALPHABET]{$CODE_LENGTH}$")
     }
 }
