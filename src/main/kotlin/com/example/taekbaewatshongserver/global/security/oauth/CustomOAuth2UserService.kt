@@ -83,7 +83,8 @@ class CustomOAuth2UserService(
             return userRepository.save(existing)
         }
 
-        if (adminBootstrap.isBootstrapEmail(userInfo.email)) {
+        // 부트스트랩은 관리자가 한 명도 없을 때만 인정한다. 한 명이라도 있으면 초대 코드 경로로 넘어간다.
+        if (adminBootstrap.isBootstrapEmail(userInfo.email) && !userRepository.existsByRole(Role.ADMIN)) {
             rejectLocalAccount(existing)
             if (existing != null) {
                 applyUserInfo(existing, userInfo)
