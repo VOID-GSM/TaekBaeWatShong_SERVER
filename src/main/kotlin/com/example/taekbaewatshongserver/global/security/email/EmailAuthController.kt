@@ -37,7 +37,7 @@ class EmailAuthController(
     @Operation(
         summary = "회원가입 (학생·선생님)",
         description = """
-            이메일·비밀번호로 학생 또는 선생님 계정을 만들고 바로 JWT를 발급한다.
+            이메일·비밀번호로 학생 또는 선생님 계정을 만들고 바로 액세스 토큰(JWT)과 refresh token을 발급한다.
 
             - `role`은 STUDENT 또는 TEACHER만 가능하다.
             - STUDENT는 `studentNumber`(4자리 숫자)가 필수다. TEACHER가 보낸 `studentNumber`는 저장되지 않는다.
@@ -46,7 +46,7 @@ class EmailAuthController(
         """,
     )
     @ApiResponses(
-        ApiResponse(responseCode = "200", description = "가입 성공. 발급된 JWT를 반환한다."),
+        ApiResponse(responseCode = "200", description = "가입 성공. 액세스 토큰(JWT)과 refresh token을 반환한다."),
         ApiResponse(
             responseCode = "400",
             description = "이메일 형식 오류 / 비밀번호 길이 오류 / 이름이 비어 있음 / 학번이 4자리 숫자가 아님 / `role`이 STUDENT·TEACHER가 아님",
@@ -74,14 +74,14 @@ class EmailAuthController(
     @Operation(
         summary = "로그인 (학생·선생님)",
         description = """
-            이메일·비밀번호로 로그인하고 JWT를 발급한다.
+            이메일·비밀번호로 로그인하고 액세스 토큰(JWT)과 refresh token을 발급한다.
 
             - 이메일 회원가입으로 만든 계정만 로그인할 수 있다. Google·DataGSM으로 가입한 계정은 401.
             - 역할을 검사하지 않으므로 관리자 계정도 이 API로 로그인된다.
         """,
     )
     @ApiResponses(
-        ApiResponse(responseCode = "200", description = "로그인 성공. 발급된 JWT를 반환한다."),
+        ApiResponse(responseCode = "200", description = "로그인 성공. 액세스 토큰(JWT)과 refresh token을 반환한다."),
         ApiResponse(
             responseCode = "400",
             description = "이메일 형식 오류",
@@ -102,9 +102,9 @@ class EmailAuthController(
     @Operation(
         summary = "관리자 회원가입",
         description = """
-            관리자(ADMIN) 계정을 만들고 바로 JWT를 발급한다.
+            관리자(ADMIN) 계정을 만들고 바로 액세스 토큰(JWT)과 refresh token을 발급한다.
 
-            - 이미 ADMIN인 LOCAL 계정은 비밀번호가 일치하면 그대로 JWT를 발급한다. 초대 코드는 필요 없고, 보내도 소비되지 않는다.
+            - 이미 ADMIN인 LOCAL 계정은 비밀번호가 일치하면 그대로 토큰(JWT·refresh token)을 발급한다. 초대 코드는 필요 없고, 보내도 소비되지 않는다.
             - 그 외에는 유효한 관리자 초대 코드(`inviteCode`)가 있어야 한다. 초대 코드는 첫 관리자 계정이 `POST /admin/invite-codes`로 발급한다.
               - 새 이메일이면 ADMIN 계정을 만든다.
               - 이미 가입된 LOCAL 계정이면 기존 비밀번호가 일치할 때 ADMIN으로 승격한다. 비밀번호와 이름은 바뀌지 않는다.
@@ -116,7 +116,7 @@ class EmailAuthController(
         """,
     )
     @ApiResponses(
-        ApiResponse(responseCode = "200", description = "가입 성공. 발급된 JWT를 반환한다."),
+        ApiResponse(responseCode = "200", description = "가입 성공. 액세스 토큰(JWT)과 refresh token을 반환한다."),
         ApiResponse(
             responseCode = "400",
             description = "이메일 형식 오류 / 비밀번호 길이 오류 / 이름이 비어 있음 (`DefaultErrorResponse`) · 초대 코드 형식 오류 / 없거나 만료되었거나 사용 인원이 다 찬 초대 코드 (`ErrorResponse`)",
@@ -166,7 +166,7 @@ class EmailAuthController(
         """,
     )
     @ApiResponses(
-        ApiResponse(responseCode = "200", description = "로그인 성공. 발급된 JWT를 반환한다."),
+        ApiResponse(responseCode = "200", description = "로그인 성공. 액세스 토큰(JWT)과 refresh token을 반환한다."),
         ApiResponse(
             responseCode = "400",
             description = "이메일 형식 오류",

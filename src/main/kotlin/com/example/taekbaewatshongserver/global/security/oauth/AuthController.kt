@@ -42,7 +42,7 @@ class AuthController(
             **전체 흐름**
             1. `GET /auth/login?provider=...&role=...` → 302로 소셜 로그인 화면 이동
             2. 로그인 성공 시 서버가 사용자 앱의 리다이렉트 주소(`OAUTH2_REDIRECT_URI`)로 `?code={일회용 코드}`를 붙여 이동시킨다. 관리자 계정이면 관리자 앱 주소로 이동한다.
-            3. 앱은 받은 `code`로 `GET /auth/token`을 호출해 JWT를 받는다.
+            3. 앱은 받은 `code`로 `GET /auth/token`을 호출해 JWT(`token`)와 refresh token(`refreshToken`)을 받는다.
 
             로그인에 실패하면 같은 리다이렉트 주소로 `?error={사유}`가 붙어 이동한다.
 
@@ -178,15 +178,16 @@ class AuthController(
     }
 
     @Operation(
-        summary = "일회용 코드를 JWT로 교환",
+        summary = "일회용 코드를 액세스 토큰·refresh token으로 교환",
         description = """
-            소셜 로그인 성공 후 리다이렉트 주소로 받은 `code`를 JWT로 바꾼다.
+            소셜 로그인 성공 후 리다이렉트 주소로 받은 `code`를 액세스 토큰(JWT)과 refresh token으로 바꾼다.
 
             - `code`는 발급 후 **30초** 동안만 유효하고 **한 번만** 쓸 수 있다. 같은 코드로 다시 요청하면 401.
+            - 액세스 토큰이 만료되면 `refreshToken`으로 `POST /auth/refresh`를 호출해 새로 받는다.
         """,
     )
     @ApiResponses(
-        ApiResponse(responseCode = "200", description = "교환 성공. 발급된 JWT를 반환한다."),
+        ApiResponse(responseCode = "200", description = "교환 성공. 액세스 토큰(JWT)과 refresh token을 반환한다."),
         ApiResponse(
             responseCode = "400",
             description = "`code` 파라미터 누락",

@@ -42,7 +42,7 @@ class OpenApiConfig {
                 Tag().name(ApiTags.OAUTH).description(
                     "Google·DataGSM 소셜 로그인 API. 브라우저 리다이렉트로 동작하므로 Swagger의 Try it out으로는 끝까지 진행할 수 없다.",
                 ),
-                Tag().name(ApiTags.EMAIL_AUTH).description("이메일·비밀번호 회원가입/로그인 API. 성공하면 바로 JWT를 발급한다."),
+                Tag().name(ApiTags.EMAIL_AUTH).description("이메일·비밀번호 회원가입/로그인 API. 성공하면 바로 액세스 토큰(JWT)과 refresh token을 발급한다."),
                 Tag().name(ApiTags.TOKEN).description(
                     "refresh token으로 액세스 토큰을 재발급하고, 로그아웃 시 refresh token을 폐기하는 API. 로그인 1회마다 refresh token 묶음(family)이 하나 생긴다.",
                 ),
@@ -91,9 +91,9 @@ class OpenApiConfig {
             택배왔숑 서버 API 문서입니다.
 
             ## 인증
-            1. 로그인 API(이메일 로그인 또는 OAuth 로그인 후 `GET /auth/token`)로 JWT를 받습니다.
+            1. 로그인 API(이메일 로그인 또는 OAuth 로그인 후 `GET /auth/token`)로 JWT(`token`)와 refresh token(`refreshToken`)을 받습니다.
             2. 오른쪽 위 **Authorize** 버튼에 받은 `token` 값을 넣으면 이후 요청에 `Authorization: Bearer {token}` 헤더가 붙습니다.
-            3. 토큰 유효 시간은 1시간입니다.
+            3. 액세스 토큰 유효 시간은 1시간입니다. 만료되면 `POST /auth/refresh`에 `refreshToken`을 보내 새 토큰 쌍을 받습니다. refresh token은 마지막 재발급부터 30일 동안 유효합니다.
 
             자물쇠 아이콘이 없는 API는 토큰 없이 호출할 수 있습니다.
 
@@ -105,7 +105,7 @@ class OpenApiConfig {
 
             ## 토큰이 없거나 만료된 경우
             로그인이 필요한 API를 토큰 없이(또는 만료·위조된 토큰으로) 호출하면 401이 아니라 **302 리다이렉트**(`Location: /login`)가 반환됩니다.
-            `fetch`·`axios`는 리다이렉트를 자동으로 따라가 로그인 HTML 페이지(200)를 받게 되므로, 응답이 JSON이 아니면 토큰 만료로 보고 다시 로그인시키세요.
+            `fetch`·`axios`는 리다이렉트를 자동으로 따라가 로그인 HTML 페이지(200)를 받게 되므로, 응답이 JSON이 아니면 토큰 만료로 보고 먼저 `POST /auth/refresh`로 재발급을 시도하세요. 재발급이 401이면 다시 로그인시키세요.
             로그인은 했지만 권한이 없는 경우(관리자 전용 API, 남의 데이터 접근)는 **403**입니다.
 
             ## 날짜 형식
