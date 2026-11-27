@@ -20,6 +20,7 @@ class OneTimeAuthCodeStore {
     }
 
     fun consume(code: String): TokenResponse? {
+        purgeExpired()
         val entry = store.remove(code) ?: return null
         return entry.tokens.takeIf { entry.expiresAt.isAfter(Instant.now()) }
     }
