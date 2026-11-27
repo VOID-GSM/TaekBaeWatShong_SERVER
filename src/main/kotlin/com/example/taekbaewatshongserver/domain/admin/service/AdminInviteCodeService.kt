@@ -5,10 +5,12 @@ import com.example.taekbaewatshongserver.domain.admin.entity.AdminInviteCode
 import com.example.taekbaewatshongserver.domain.admin.entity.AdminInviteCodeUsage
 import com.example.taekbaewatshongserver.domain.admin.repository.AdminInviteCodeRepository
 import com.example.taekbaewatshongserver.domain.admin.repository.AdminInviteCodeUsageRepository
+import com.example.taekbaewatshongserver.domain.user.entity.AuthProvider
 import com.example.taekbaewatshongserver.domain.user.entity.Role
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.exception.AdminInviteCodeException
+import com.example.taekbaewatshongserver.global.security.AdminBootstrap
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -26,6 +28,7 @@ class AdminInviteCodeService(
     private val adminInviteCodeRepository: AdminInviteCodeRepository,
     private val adminInviteCodeUsageRepository: AdminInviteCodeUsageRepository,
     private val userRepository: UserRepository,
+    private val adminBootstrap: AdminBootstrap,
     @Value("\${jwt.secret}") hashSecret: String,
 ) {
 
@@ -35,6 +38,10 @@ class AdminInviteCodeService(
 
     @Transactional
     fun issue(issuer: User, maxUses: Int): AdminInviteCodeIssueResponse {
+        // 이메일 가입(LOCAL)은 이메일 소유를 확인하지 않으므로, 같은 주소의 LOCAL 계정은 첫 관리자로 보지 않는다.
+        if (issuer.provider == AuthProvider.LOCAL || !adminBootstrap.isBootstrapEmail(issuer.email)) {
+            throw AdminInviteCodeException.IssuerNotAllowed()
+        }
         if (maxUses !in MIN_MAX_USES..MAX_USES_LIMIT) {
             throw AdminInviteCodeException.InvalidMaxUses()
         }

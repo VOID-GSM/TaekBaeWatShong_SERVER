@@ -9,6 +9,7 @@ import com.example.taekbaewatshongserver.domain.user.entity.Role
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.exception.AdminInviteCodeException
+import com.example.taekbaewatshongserver.global.security.AdminBootstrap
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers
@@ -41,6 +42,7 @@ class AdminInviteCodeServiceTest {
         adminInviteCodeRepository,
         adminInviteCodeUsageRepository,
         userRepository,
+        AdminBootstrap("teamvoid0107@gmail.com"),
         secret,
     )
 
