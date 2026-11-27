@@ -34,9 +34,16 @@ class CustomOAuth2UserServiceTest {
     // Kotlin의 non-null 파라미터와 Mockito 매처(any())가 충돌하지 않도록, 매처 대신 기본 Answer로 동작을 정한다.
     private val usersByEmail = mutableMapOf<String, User>()
     private val savedUsers = mutableListOf<User>()
+
+    // usersByEmail에 없는 다른 관리자가 DB에 있다고 가정할 때 true로 둔다.
+    private var otherAdminExists = false
     private val userRepository: UserRepository = mock(UserRepository::class.java) { invocation ->
         when (invocation.method.name) {
             "findByEmail" -> usersByEmail[invocation.getArgument(0)]
+            "existsByRole" -> {
+                val role = invocation.getArgument<Role>(0)
+                (role == Role.ADMIN && otherAdminExists) || usersByEmail.values.any { it.role == role }
+            }
             "save" -> invocation.getArgument<User>(0).also { savedUsers += it }
             else -> null
         }
@@ -167,6 +174,54 @@ class CustomOAuth2UserServiceTest {
         }
 
         assertEquals("invalid_invite_code", exception.error.errorCode)
+    }
+
+    @Test
+    fun `관리자가 이미 있으면 부트스트랩 이메일의 새 계정은 not_admin으로 거부되고 저장되지 않는다`() {
+        otherAdminExists = true
+
+        val exception = assertFailsWith<OAuth2AuthenticationException> {
+            service.resolveAdminUser(googleUserInfo("teamvoid0107@gmail.com"), AuthProvider.GOOGLE, null)
+        }
+
+        assertEquals("not_admin", exception.error.errorCode)
+        assertTrue(savedUsers.isEmpty())
+    }
+
+    @Test
+    fun `관리자가 이미 있으면 부트스트랩 이메일도 초대 코드 경로로 넘어가 코드를 소비한다`() {
+        otherAdminExists = true
+
+        val result = service.resolveAdminUser(googleUserInfo("teamvoid0107@gmail.com"), AuthProvider.GOOGLE, "K7Q2M9XA")
+
+        assertEquals("K7Q2M9XA", consumeCalls.single().first)
+        assertEquals(Role.ADMIN, result.role)
+    }
+
+    @Test
+    fun `강등된 부트스트랩 계정은 다른 관리자가 있는 동안 다시 승격되지 않는다`() {
+        val demoted = existingUser("teamvoid0107@gmail.com", Role.STUDENT)
+        otherAdminExists = true
+
+        val exception = assertFailsWith<OAuth2AuthenticationException> {
+            service.resolveAdminUser(googleUserInfo("teamvoid0107@gmail.com"), AuthProvider.GOOGLE, null)
+        }
+
+        assertEquals("not_admin", exception.error.errorCode)
+        assertEquals(Role.STUDENT, demoted.role)
+        assertTrue(savedUsers.isEmpty())
+    }
+
+    @Test
+    fun `관리자가 이미 있으면 부트스트랩 이메일의 LOCAL 계정은 local_account가 아니라 not_admin으로 거부된다`() {
+        existingUser("teamvoid0107@gmail.com", Role.TEACHER, AuthProvider.LOCAL)
+        otherAdminExists = true
+
+        val exception = assertFailsWith<OAuth2AuthenticationException> {
+            service.resolveAdminUser(googleUserInfo("teamvoid0107@gmail.com"), AuthProvider.GOOGLE, null)
+        }
+
+        assertEquals("not_admin", exception.error.errorCode)
     }
 
     @Test
