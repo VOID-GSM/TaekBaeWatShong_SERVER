@@ -44,6 +44,8 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
   access-token-validity-ms: 3600000
+  refresh-token-validity-ms: 2592000000 # 30일, 슬라이딩(재발급할 때마다 그 시점부터 30일)
+  refresh-token-grace-ms: 10000 # 회전 직후 같은 토큰 재제출을 재사용으로 보지 않는 유예 10초
 
 app:
   oauth2:
