@@ -45,6 +45,8 @@ class SecurityConfig(
                     "/auth/login",
                     "/auth/admin/login",
                     "/auth/token",
+                    "/auth/refresh",
+                    "/auth/logout",
                     "/auth/email/signup",
                     "/auth/email/login",
                     "/auth/email/admin/signup",

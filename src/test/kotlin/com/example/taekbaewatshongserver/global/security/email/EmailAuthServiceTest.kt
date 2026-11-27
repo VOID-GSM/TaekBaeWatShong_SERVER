@@ -1,14 +1,16 @@
 package com.example.taekbaewatshongserver.global.security.email
 
 import com.example.taekbaewatshongserver.domain.admin.service.AdminInviteCodeService
+import com.example.taekbaewatshongserver.domain.auth.service.RefreshTokenService
 import com.example.taekbaewatshongserver.domain.user.dto.AdminSignUpRequest
 import com.example.taekbaewatshongserver.domain.user.dto.EmailLoginRequest
+import com.example.taekbaewatshongserver.domain.user.dto.SignUpRequest
+import com.example.taekbaewatshongserver.domain.user.dto.TokenResponse
 import com.example.taekbaewatshongserver.domain.user.entity.AuthProvider
 import com.example.taekbaewatshongserver.domain.user.entity.Role
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
 import com.example.taekbaewatshongserver.global.exception.AdminInviteCodeException
-import com.example.taekbaewatshongserver.global.security.jwt.JwtTokenProvider
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito.mock
@@ -18,18 +20,21 @@ import org.mockito.Mockito.`when`
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class EmailAuthServiceTest {
 
     private val userRepository: UserRepository = mock(UserRepository::class.java)
     private val passwordEncoder: PasswordEncoder = mock(PasswordEncoder::class.java)
-    private val jwtTokenProvider: JwtTokenProvider = mock(JwtTokenProvider::class.java)
+    private val refreshTokenService: RefreshTokenService = mock(RefreshTokenService::class.java)
     private val adminInviteCodeService: AdminInviteCodeService = mock(AdminInviteCodeService::class.java)
-    private val service = EmailAuthService(userRepository, passwordEncoder, jwtTokenProvider, adminInviteCodeService)
+    private val service = EmailAuthService(userRepository, passwordEncoder, refreshTokenService, adminInviteCodeService)
 
     private val code = "K7Q2-M9XA"
 
@@ -61,6 +66,10 @@ class EmailAuthServiceTest {
         assertEquals(status, exception.statusCode)
     }
 
+    private fun givenIssued(user: User) {
+        `when`(refreshTokenService.issueOnLogin(sameUser(user))).thenReturn(TokenResponse(token = "token", refreshToken = "refresh"))
+    }
+
     private fun givenPassword(matches: Boolean) {
         `when`(passwordEncoder.matches("password1234", "hashed")).thenReturn(matches)
     }
@@ -70,11 +79,13 @@ class EmailAuthServiceTest {
         val admin = localUser(10L, "admin@gsm.hs.kr", Role.ADMIN)
         `when`(userRepository.findByEmail(admin.email)).thenReturn(admin)
         givenPassword(matches = true)
-        `when`(jwtTokenProvider.createToken(10L, admin.email)).thenReturn("token")
+        givenIssued(admin)
 
         val response = service.adminSignUp(AdminSignUpRequest(admin.email, "password1234", "관리자", inviteCode = code))
 
         assertEquals("token", response.token)
+        assertEquals("refresh", response.refreshToken)
+        verify(refreshTokenService).issueOnLogin(sameUser(admin))
         verify(adminInviteCodeService, never()).consume(anyCode(), anyUser())
     }
 
@@ -85,12 +96,14 @@ class EmailAuthServiceTest {
         `when`(userRepository.findByEmail(student.email)).thenReturn(student)
         givenPassword(matches = true)
         `when`(adminInviteCodeService.consume(eqString(code), sameUser(student))).thenReturn(promoted)
-        `when`(jwtTokenProvider.createToken(1L, student.email)).thenReturn("token")
+        givenIssued(promoted)
 
         val response = service.adminSignUp(AdminSignUpRequest(student.email, "password1234", "학생", inviteCode = code))
 
         assertEquals("token", response.token)
+        assertEquals("refresh", response.refreshToken)
         verify(adminInviteCodeService).consume(eqString(code), sameUser(student))
+        verify(refreshTokenService).issueOnLogin(sameUser(promoted))
     }
 
     @Test
@@ -103,11 +116,14 @@ class EmailAuthServiceTest {
             val user = it.getArgument<User>(1).also(passed::add)
             User(id = 5L, email = user.email, name = user.name, provider = user.provider, password = user.password, role = user.role)
         }
-        `when`(jwtTokenProvider.createToken(5L, email)).thenReturn("token")
+        `when`(refreshTokenService.issueOnLogin(anyUser())).thenAnswer {
+            TokenResponse(token = "token-${it.getArgument<User>(0).id}", refreshToken = "refresh")
+        }
 
         val response = service.adminSignUp(AdminSignUpRequest(email, "password1234", "새관리자", inviteCode = code))
 
-        assertEquals("token", response.token)
+        assertEquals("token-5", response.token)
+        assertEquals("refresh", response.refreshToken)
         val created = passed.single()
         assertNull(created.id)
         assertEquals(email, created.email)
@@ -190,9 +206,13 @@ class EmailAuthServiceTest {
         val admin = localUser(10L, "admin@gsm.hs.kr", Role.ADMIN)
         `when`(userRepository.findByEmail(admin.email)).thenReturn(admin)
         givenPassword(matches = true)
-        `when`(jwtTokenProvider.createToken(10L, admin.email)).thenReturn("token")
+        givenIssued(admin)
 
-        assertEquals("token", service.adminLogin(EmailLoginRequest(admin.email, "password1234")).token)
+        val response = service.adminLogin(EmailLoginRequest(admin.email, "password1234"))
+
+        assertEquals("token", response.token)
+        assertEquals("refresh", response.refreshToken)
+        verify(refreshTokenService).issueOnLogin(sameUser(admin))
     }
 
     @Test
@@ -208,5 +228,56 @@ class EmailAuthServiceTest {
 
         assertEquals(Role.STUDENT, student.role)
         assertEquals(Role.STUDENT, bootstrap.role)
+        verify(refreshTokenService, never()).issueOnLogin(anyUser())
+    }
+
+    @Test
+    fun `일반 로그인은 refresh token을 함께 발급한다`() {
+        val student = localUser(1L, "student@gsm.hs.kr", Role.STUDENT)
+        `when`(userRepository.findByEmail(student.email)).thenReturn(student)
+        givenPassword(matches = true)
+        givenIssued(student)
+
+        val response = service.login(EmailLoginRequest(student.email, "password1234"))
+
+        assertEquals("token", response.token)
+        assertEquals("refresh", response.refreshToken)
+        verify(refreshTokenService).issueOnLogin(sameUser(student))
+    }
+
+    @Test
+    fun `비밀번호가 틀리면 refresh token을 발급하지 않는다`() {
+        val student = localUser(1L, "student@gsm.hs.kr", Role.STUDENT)
+        `when`(userRepository.findByEmail(student.email)).thenReturn(student)
+        givenPassword(matches = false)
+
+        assertStatus(HttpStatus.UNAUTHORIZED) { service.login(EmailLoginRequest(student.email, "password1234")) }
+        verify(refreshTokenService, never()).issueOnLogin(anyUser())
+    }
+
+    @Test
+    fun `회원가입은 저장된 사용자로 refresh token을 발급한다`() {
+        val email = "new@gsm.hs.kr"
+        `when`(userRepository.existsByEmail(email)).thenReturn(false)
+        `when`(passwordEncoder.encode("password1234")).thenReturn("hashed")
+        val saved = localUser(7L, email, Role.STUDENT)
+        `when`(userRepository.save(anyUser())).thenReturn(saved)
+        givenIssued(saved)
+
+        val response = service.signUp(SignUpRequest(email, "password1234", "새학생", Role.STUDENT, studentNumber = "1101"))
+
+        assertEquals("token", response.token)
+        assertEquals("refresh", response.refreshToken)
+        verify(refreshTokenService).issueOnLogin(sameUser(saved))
+    }
+
+    @Test
+    fun `로그인 두 경로는 refresh token 저장을 위해 쓰기 트랜잭션으로 열린다`() {
+        listOf("login", "adminLogin").forEach { name ->
+            val transactional = EmailAuthService::class.java.getMethod(name, EmailLoginRequest::class.java)
+                .getAnnotation(Transactional::class.java)
+            assertNotNull(transactional, name)
+            assertFalse(transactional.readOnly, name)
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.example.taekbaewatshongserver.global.security.oauth
 
+import com.example.taekbaewatshongserver.domain.user.dto.TokenResponse
 import org.springframework.stereotype.Component
 import java.time.Instant
 import java.util.UUID
@@ -7,20 +8,21 @@ import java.util.concurrent.ConcurrentHashMap
 
 @Component
 class OneTimeAuthCodeStore {
-    private data class Entry(val token: String, val expiresAt: Instant)
+    private data class Entry(val tokens: TokenResponse, val expiresAt: Instant)
 
     private val store = ConcurrentHashMap<String, Entry>()
 
-    fun issue(token: String): String {
+    fun issue(tokens: TokenResponse): String {
         purgeExpired()
         val code = UUID.randomUUID().toString()
-        store[code] = Entry(token, Instant.now().plusSeconds(TTL_SECONDS))
+        store[code] = Entry(tokens, Instant.now().plusSeconds(TTL_SECONDS))
         return code
     }
 
-    fun consume(code: String): String? {
+    fun consume(code: String): TokenResponse? {
+        purgeExpired()
         val entry = store.remove(code) ?: return null
-        return entry.token.takeIf { entry.expiresAt.isAfter(Instant.now()) }
+        return entry.tokens.takeIf { entry.expiresAt.isAfter(Instant.now()) }
     }
 
     private fun purgeExpired() {
