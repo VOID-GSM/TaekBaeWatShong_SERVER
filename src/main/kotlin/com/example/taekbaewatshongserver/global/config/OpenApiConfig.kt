@@ -43,6 +43,9 @@ class OpenApiConfig {
                     "Google·DataGSM 소셜 로그인 API. 브라우저 리다이렉트로 동작하므로 Swagger의 Try it out으로는 끝까지 진행할 수 없다.",
                 ),
                 Tag().name(ApiTags.EMAIL_AUTH).description("이메일·비밀번호 회원가입/로그인 API. 성공하면 바로 JWT를 발급한다."),
+                Tag().name(ApiTags.TOKEN).description(
+                    "refresh token으로 액세스 토큰을 재발급하고, 로그아웃 시 refresh token을 폐기하는 API. 로그인 1회마다 refresh token 묶음(family)이 하나 생긴다.",
+                ),
                 Tag().name(ApiTags.USER).description("로그인한 사용자 본인 정보 API."),
                 Tag().name(ApiTags.PARCEL).description(
                     "택배 등록·조회·도착 처리·구역 배정·수령 API. 상태는 PENDING(도착 예정) → ARRIVED(도착 완료) → CLAIMED(수령 완료) 순서로만 바뀐다.",
@@ -121,4 +124,5 @@ object ApiTags {
     const val CHAT = "Chat"
     const val DRIVER_QR = "Driver QR"
     const val ADMIN_INVITE = "Admin Invite Code"
+    const val TOKEN = "Token"
 }
