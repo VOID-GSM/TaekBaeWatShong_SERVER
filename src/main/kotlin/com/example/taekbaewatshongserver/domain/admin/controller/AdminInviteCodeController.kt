@@ -35,6 +35,7 @@ class AdminInviteCodeController(
         description = """
             새 관리자를 등록할 때 쓸 초대 코드를 발급한다.
 
+            - 첫 관리자 계정만 발급할 수 있다. 다른 관리자(ADMIN)가 호출하면 403이다.
             - 코드 하나를 발급할 때 정한 인원(기본 1명, 최대 20명)까지 쓸 수 있고, 24시간 뒤 만료된다.
             - 요청 본문은 선택이다. 본문이 없거나 `maxUses`가 없으면 1명이다. 유효 기간은 바꿀 수 없다.
             - 호출할 때마다 새 코드가 만들어진다. 이전에 발급한 코드는 그대로 유효하다.
@@ -57,8 +58,15 @@ class AdminInviteCodeController(
         ),
         ApiResponse(
             responseCode = "403",
-            description = "관리자가 아님",
-            content = [Content(schema = Schema(implementation = DefaultErrorResponse::class))],
+            description = "관리자가 아님 (`DefaultErrorResponse`, 사유 문구 없음) / 관리자지만 첫 관리자 계정이 아님 (`ErrorResponse`)",
+            content = [
+                Content(
+                    schema = Schema(oneOf = [ErrorResponse::class, DefaultErrorResponse::class]),
+                    examples = [
+                        ExampleObject(name = "첫 관리자 계정이 아님", value = """{"message": "초대 코드는 첫 관리자 계정만 발급할 수 있습니다."}"""),
+                    ],
+                ),
+            ],
         ),
     )
     @PreAuthorize("hasRole('ADMIN')")

@@ -55,7 +55,7 @@ class OpenApiConfig {
                     "1:1 채팅 API. 택배기사(ADMIN) ↔ 학생/선생님은 항상 가능하고, 학생 ↔ 선생님은 양쪽 모두 DataGSM 계정일 때만 가능하다.",
                 ),
                 Tag().name(ApiTags.DRIVER_QR).description("택배기사 QR 발급·스캔 API. 모두 관리자(ADMIN) 전용."),
-                Tag().name(ApiTags.ADMIN_INVITE).description("관리자 초대 코드 발급 API. 관리자(ADMIN) 전용. 코드 하나를 발급할 때 정한 인원(기본 1명, 최대 20명)까지 쓸 수 있고, 24시간 뒤 만료된다."),
+                Tag().name(ApiTags.ADMIN_INVITE).description("관리자 초대 코드 발급 API. 관리자(ADMIN) 전용이며, 첫 관리자 계정만 발급할 수 있다. 코드 하나를 발급할 때 정한 인원(기본 1명, 최대 20명)까지 쓸 수 있고, 24시간 뒤 만료된다."),
             ),
         )
 
