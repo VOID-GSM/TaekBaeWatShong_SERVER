@@ -20,7 +20,9 @@ Everything currently implemented:
 | GET | `/api/users/me` | authenticated | current user |
 | GET | `/auth/login?role=` | public | start Google OAuth (client) |
 | GET | `/auth/admin/login` | public | start Google OAuth (admin) |
-| GET | `/auth/token?code=` | public | exchange one-time code for JWT |
+| GET | `/auth/token?code=` | public | exchange one-time code for JWT + refresh token |
+| POST | `/auth/refresh` | public | rotate refresh token, issue new JWT (30일 슬라이딩, 10초 유예, 재사용 시 family 폐기) |
+| POST | `/auth/logout` | public | revoke the refresh token family (always 204) |
 | POST | `/auth/email/{signup,login}` | public | email/password auth |
 | POST | `/auth/email/admin/{signup,login}` | public | email/password auth (admin) |
 
