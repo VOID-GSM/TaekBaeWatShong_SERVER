@@ -30,6 +30,7 @@ import kotlin.test.assertTrue
 class AdminInviteCodeServiceTest {
 
     private val admin = User(id = 10L, email = "admin@gsm.hs.kr", name = "관리자", provider = AuthProvider.LOCAL, role = Role.ADMIN)
+    private val bootstrapAdmin = User(id = 11L, email = "TeamVoid0107@gmail.com", name = "VOID", provider = AuthProvider.GOOGLE, role = Role.ADMIN)
     private val student = User(id = 1L, email = "student@gsm.hs.kr", name = "이학생", provider = AuthProvider.GOOGLE, role = Role.STUDENT)
 
     private val adminInviteCodeRepository: AdminInviteCodeRepository = mock(AdminInviteCodeRepository::class.java)
@@ -121,13 +122,13 @@ class AdminInviteCodeServiceTest {
         `when`(adminInviteCodeRepository.save(anyInviteCode())).thenAnswer { it.getArgument<AdminInviteCode>(0) }
         val before = LocalDateTime.now()
 
-        val response = service.issue(admin, 5)
+        val response = service.issue(bootstrapAdmin, 5)
 
         val captor = ArgumentCaptor.forClass(AdminInviteCode::class.java)
         verify(adminInviteCodeRepository).save(captor.capture())
         val saved = captor.value
         assertEquals(service.hash(service.normalize(response.code)), saved.codeHash)
-        assertSame(admin, saved.createdBy)
+        assertSame(bootstrapAdmin, saved.createdBy)
         assertEquals(5, saved.maxUses)
         assertEquals(0, saved.usedCount)
         assertEquals(5, response.maxUses)
@@ -137,18 +138,42 @@ class AdminInviteCodeServiceTest {
     }
 
     @Test
+    fun `첫 관리자 계정이 아닌 ADMIN은 발급할 수 없다`() {
+        assertFailsWith<AdminInviteCodeException.IssuerNotAllowed> { service.issue(admin, 1) }
+        assertFailsWith<AdminInviteCodeException.IssuerNotAllowed> { service.issue(admin, 0) }
+        verify(adminInviteCodeRepository, never()).save(ArgumentMatchers.any(AdminInviteCode::class.java))
+    }
+
+    @Test
+    fun `첫 관리자 이메일은 대소문자·공백과 관계없이 발급할 수 있다`() {
+        `when`(adminInviteCodeRepository.save(anyInviteCode())).thenAnswer { it.getArgument<AdminInviteCode>(0) }
+        val padded = User(id = 12L, email = " teamvoid0107@GMAIL.com ", name = "VOID", provider = AuthProvider.DATAGSM, role = Role.ADMIN)
+
+        assertEquals(1, service.issue(bootstrapAdmin, 1).maxUses)
+        assertEquals(1, service.issue(padded, 1).maxUses)
+    }
+
+    @Test
+    fun `첫 관리자 이메일이라도 이메일 가입(LOCAL) 계정은 발급할 수 없다`() {
+        val localBootstrap = User(id = 13L, email = "teamvoid0107@gmail.com", name = "VOID", provider = AuthProvider.LOCAL, role = Role.ADMIN)
+
+        assertFailsWith<AdminInviteCodeException.IssuerNotAllowed> { service.issue(localBootstrap, 1) }
+        verify(adminInviteCodeRepository, never()).save(ArgumentMatchers.any(AdminInviteCode::class.java))
+    }
+
+    @Test
     fun `인원 제한은 1명부터 20명까지 허용한다`() {
         `when`(adminInviteCodeRepository.save(anyInviteCode())).thenAnswer { it.getArgument<AdminInviteCode>(0) }
 
-        assertEquals(AdminInviteCodeService.DEFAULT_MAX_USES, service.issue(admin, AdminInviteCodeService.DEFAULT_MAX_USES).maxUses)
+        assertEquals(AdminInviteCodeService.DEFAULT_MAX_USES, service.issue(bootstrapAdmin, AdminInviteCodeService.DEFAULT_MAX_USES).maxUses)
         assertEquals(1, AdminInviteCodeService.DEFAULT_MAX_USES)
-        assertEquals(20, service.issue(admin, AdminInviteCodeService.MAX_USES_LIMIT).maxUses)
+        assertEquals(20, service.issue(bootstrapAdmin, AdminInviteCodeService.MAX_USES_LIMIT).maxUses)
     }
 
     @Test
     fun `인원 제한이 범위를 벗어나면 저장하지 않고 InvalidMaxUses를 던진다`() {
         listOf(0, -1, 21).forEach { maxUses ->
-            assertFailsWith<AdminInviteCodeException.InvalidMaxUses>(maxUses.toString()) { service.issue(admin, maxUses) }
+            assertFailsWith<AdminInviteCodeException.InvalidMaxUses>(maxUses.toString()) { service.issue(bootstrapAdmin, maxUses) }
         }
         verify(adminInviteCodeRepository, never()).save(ArgumentMatchers.any(AdminInviteCode::class.java))
     }
