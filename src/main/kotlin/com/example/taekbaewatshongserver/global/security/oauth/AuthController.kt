@@ -203,11 +203,8 @@ class AuthController(
         @Parameter(description = "리다이렉트 주소의 `code` 쿼리 값", example = "3f2b8c1e-5d7a-4e9b-9c0d-1a2b3c4d5e6f")
         @RequestParam
         code: String,
-    ): TokenResponse {
-        val token = oneTimeAuthCodeStore.consume(code)
-            ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "유효하지 않거나 만료된 code입니다")
-        return TokenResponse(token)
-    }
+    ): TokenResponse = oneTimeAuthCodeStore.consume(code)
+        ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "유효하지 않거나 만료된 code입니다")
 
     enum class LoginType {
         CLIENT,

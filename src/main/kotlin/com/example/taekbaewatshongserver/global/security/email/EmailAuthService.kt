@@ -1,6 +1,7 @@
 package com.example.taekbaewatshongserver.global.security.email
 
 import com.example.taekbaewatshongserver.domain.admin.service.AdminInviteCodeService
+import com.example.taekbaewatshongserver.domain.auth.service.RefreshTokenService
 import com.example.taekbaewatshongserver.domain.user.dto.AdminSignUpRequest
 import com.example.taekbaewatshongserver.domain.user.dto.EmailLoginRequest
 import com.example.taekbaewatshongserver.domain.user.dto.SignUpRequest
@@ -9,7 +10,6 @@ import com.example.taekbaewatshongserver.domain.user.entity.AuthProvider
 import com.example.taekbaewatshongserver.domain.user.entity.Role
 import com.example.taekbaewatshongserver.domain.user.entity.User
 import com.example.taekbaewatshongserver.domain.user.repository.UserRepository
-import com.example.taekbaewatshongserver.global.security.jwt.JwtTokenProvider
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -22,7 +22,7 @@ import org.springframework.web.server.ResponseStatusException
 class EmailAuthService(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
-    private val jwtTokenProvider: JwtTokenProvider,
+    private val refreshTokenService: RefreshTokenService,
     private val adminInviteCodeService: AdminInviteCodeService,
 ) {
 
@@ -57,7 +57,7 @@ class EmailAuthService(
                 inviteCode != null -> adminInviteCodeService.consume(inviteCode, existing)
                 else -> throw ResponseStatusException(HttpStatus.FORBIDDEN, "관리자 계정이 아닙니다")
             }
-            return TokenResponse(jwtTokenProvider.createToken(requireNotNull(admin.id), admin.email))
+            return refreshTokenService.issueOnLogin(admin)
         }
 
         if (inviteCode == null) {
@@ -78,11 +78,14 @@ class EmailAuthService(
         } catch (e: DataIntegrityViolationException) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "이미 가입된 이메일입니다")
         }
-        return TokenResponse(jwtTokenProvider.createToken(requireNotNull(admin.id), admin.email))
+        return refreshTokenService.issueOnLogin(admin)
     }
 
+    // refresh token INSERT가 있으므로 클래스 기본값(readOnly)을 덮어쓴다. 없으면 read-only 커넥션에서 INSERT가 실패한다.
+    @Transactional
     fun login(request: EmailLoginRequest): TokenResponse = authenticate(request.email, request.password, requiredRole = null)
 
+    @Transactional
     fun adminLogin(request: EmailLoginRequest): TokenResponse = authenticate(request.email, request.password, requiredRole = Role.ADMIN)
 
     private fun createLocalUser(
@@ -111,7 +114,7 @@ class EmailAuthService(
             throw ResponseStatusException(HttpStatus.CONFLICT, "이미 가입된 이메일입니다")
         }
 
-        return TokenResponse(jwtTokenProvider.createToken(requireNotNull(user.id), user.email))
+        return refreshTokenService.issueOnLogin(user)
     }
 
     private fun authenticate(email: String, password: String, requiredRole: Role?): TokenResponse {
@@ -133,6 +136,6 @@ class EmailAuthService(
         if (requiredRole == Role.ADMIN && user.role != Role.ADMIN) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "관리자 계정이 아닙니다")
         }
-        return TokenResponse(jwtTokenProvider.createToken(requireNotNull(user.id), user.email))
+        return refreshTokenService.issueOnLogin(user)
     }
 }
